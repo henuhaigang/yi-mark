@@ -42,7 +42,7 @@ class VerificationServiceTest {
         Path output = tempDir.resolve(outputName);
         int fontSize = com.yimark.image.VisibleWatermark.baseFontSize(1200);
         return new ProtectionService(home).protect(source, output, "Acme Bank", "KYC", 0.18,
-                fontSize, -24.0);
+                fontSize, -24.0, com.yimark.image.VisibleWatermark.DEFAULT_STAGGER_RATIO);
     }
 
     @Test

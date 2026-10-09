@@ -3,6 +3,7 @@ module yi.mark {
     requires javafx.graphics;
     requires javafx.base;
     requires java.desktop;
+    requires org.apache.pdfbox;
 
     opens com.yimark to javafx.graphics;
     opens com.yimark.image to javafx.graphics;

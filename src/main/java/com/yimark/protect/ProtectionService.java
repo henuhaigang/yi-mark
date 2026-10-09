@@ -4,6 +4,7 @@ import com.yimark.crypto.BindingSecret;
 import com.yimark.crypto.Digests;
 import com.yimark.crypto.Ed25519Keys;
 import com.yimark.image.GeometryMarkers;
+import com.yimark.image.PdfUtils;
 import com.yimark.image.VisibleWatermark;
 import com.yimark.manifest.Manifest;
 import com.yimark.watermark.DctWatermark;
@@ -39,7 +40,7 @@ public final class ProtectionService {
     }
 
     public Result protect(Path source, Path output, String issuer, String purpose,
-                          double opacity, int fontSize, double angle)
+                          double opacity, int fontSize, double angle, double staggerRatio)
             throws IOException, GeneralSecurityException {
         byte[] raw = Files.readAllBytes(source);
         String sourceHash = Digests.sha256Hex(raw);
@@ -50,14 +51,15 @@ public final class ProtectionService {
                 .getBytes(StandardCharsets.UTF_8);
         String token = Digests.toHex(Digests.hmacSha256(tokenInput, bindingSecret.key()));
 
-        BufferedImage image = javax.imageio.ImageIO.read(source.toFile());
+        BufferedImage image = readImage(source);
         BufferedImage visible = VisibleWatermark.apply(image, issuer, purpose,
-                "", opacity, fontSize, angle);
+                "", opacity, fontSize, angle, staggerRatio);
         BufferedImage embedded = DctWatermark.embed(visible,
                 ("SD3|" + documentId + "|" + token + "|" + sourceHash)
                         .getBytes(StandardCharsets.UTF_8));
         GeometryMarkers.draw(embedded);
-        javax.imageio.ImageIO.write(embedded, "PNG", output.toFile());
+        
+        writeImage(embedded, output);
 
         String protectedHash = Digests.sha256Hex(Files.readAllBytes(output));
         byte[] signature = keys.sign((documentId + "|" + protectedHash + "|" + token)
@@ -74,6 +76,23 @@ public final class ProtectionService {
         Path manifestPath = manifestPath(output);
         Files.writeString(manifestPath, manifest.toJson());
         return new Result(output, manifestPath, manifest, session);
+    }
+
+    private static BufferedImage readImage(Path path) throws IOException {
+        String name = path.getFileName().toString().toLowerCase();
+        if (name.endsWith(".pdf")) {
+            return PdfUtils.readFirstPage(path);
+        }
+        return javax.imageio.ImageIO.read(path.toFile());
+    }
+
+    private static void writeImage(BufferedImage image, Path output) throws IOException {
+        String name = output.getFileName().toString().toLowerCase();
+        if (name.endsWith(".pdf")) {
+            PdfUtils.writePdf(image, output);
+        } else {
+            javax.imageio.ImageIO.write(image, "PNG", output.toFile());
+        }
     }
 
     public static Path manifestPath(Path output) {

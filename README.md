@@ -1,8 +1,8 @@
 # Yi Mark (yi-mark)
 
-Java 17 + JavaFX + Maven 的 macOS/Windows 证件/文档水印保护工具。
+Java 17 + JavaFX + Maven 的 macOS/Windows/Linux 证件/文档水印保护工具。
 
-对图片施加动态可见水印 + 频域隐形水印，并生成带 Ed25519 签名的 `.yimark.json` 清单，用于校验文件是否被改动。定位是「篡改可感知 + 提高去水印成本」，不是 DRM，也不阻止拍照或 AI 重绘。
+对图片/PDF 施加动态可见水印 + 频域隐形水印，并生成带 Ed25519 签名的 `.yimark.json` 清单，用于校验文件是否被改动。定位是「篡改可感知 + 提高去水印成本」，不是 DRM，也不阻止拍照或 AI 重绘。
 
 ---
 
@@ -40,20 +40,21 @@ mvn clean javafx:run
 
 | 区域 | 说明 |
 |------|------|
-| **选择原图 / 选择输出** | 选取源图片与导出路径 |
+| **选择原图 / 选择输出** | 选取源图片（PNG/JPG）或 PDF 与导出路径（PNG/PDF） |
 | **实时预览** | 中间大区域即时渲染可见水印，拖动滑块即时刷新 |
 | **使用方** | 签发方身份（如「招商银行」「派出所」），为空则不显示 |
 | **用途** | 使用场景（如「仅供 KYC 使用」），为空则不显示 |
 | **透明度** | 0.08–0.45，默认 0.20 |
 | **大小** | 0.01×–3.0×，默认 1.0×，可调至 1px（近乎隐形） |
 | **角度°** | –60° 到 60°，默认 –24°（负值向右上倾斜） |
-| **生成保护文件** | 写入可见/隐形水印 + 四角几何标记，输出 `xxx.png` + `xxx.yimark.json` |
+| **错位** | –1.0 到 1.0，默认 0.5（半步交错）<br>• >0：奇数行按比例错位（0.5 = 半列步）<br>• =0：不交错，整齐网格<br>• <0：随机错位，每行独立随机偏移（推荐用于提高去水印难度） |
+| **生成保护文件** | 写入可见/隐形水印 + 四角几何标记，输出 `xxx.png` / `xxx.pdf` + `xxx.yimark.json` |
 | **信任当前签发方** | 把本机签发公钥写入 `~/.yimark/trusted-issuers.json` |
 | **验证文件** | 校验 SHA-256、Ed25519 签名、信任库、隐形水印恢复 |
 
 ### 水印设计
 
-- **可见水印**：交错布局（奇数行错位半个列间距），FontMetrics 动态测宽，长文本不重叠
+- **可见水印**：交错布局（支持固定比例 / 无交错 / 随机错位），FontMetrics 动态测宽，长文本不重叠
 - **隐形水印**：8×8 DCT 频域，系数对 (2,3)/(3,2)，强度 18（PSNR ≈ 52 dB），CRC32 同步前导码 + 4 字节长度 + 载荷，RS(255,223) 交错编码，块哈希映射天然抗裁剪/旋转
 - **载荷**：`SD3|<documentId>|<watermarkToken>|<sourceSha256>`
 
@@ -66,8 +67,8 @@ mvn clean javafx:run
 | `version` | 清单格式版本，当前 3 |
 | `documentId` | 本次保护的 UUID |
 | `createdAt` | 签发时间（ISO-8601） |
-| `sourceSha256` | 原图字节 SHA-256 |
-| `protectedSha256` | 输出 PNG 字节 SHA-256 |
+| `sourceSha256` | 原图/原 PDF 字节 SHA-256 |
+| `protectedSha256` | 输出 PNG/PDF 字节 SHA-256 |
 | `watermarkToken` | `HMAC-SHA256(documentId\|sourceSha256\|用途\|session)`，密钥见下 |
 | `signatureBase64` | 对 `documentId\|protectedSha256\|watermarkToken` 的 Ed25519 签名 |
 | `publicKeyBase64` | 签名用的 Ed25519 公钥（X.509） |
@@ -85,7 +86,7 @@ mvn clean javafx:run
 
 「验证文件」做三件事：
 
-1. `SHA-256(output PNG) == protectedSha256` —— 字节级比对，任何改动失配
+1. `SHA-256(output PNG/PDF) == protectedSha256` —— 字节级比对，任何改动失配
 2. 用**信任库中固定公钥**（按指纹解析）校验 Ed25519 签名；清单自带公钥本身不作为信任依据
 3. 解隐形水印，报告是否恢复、同步得分与命中的变换
 

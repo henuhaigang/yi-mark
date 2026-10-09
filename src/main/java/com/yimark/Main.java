@@ -1,6 +1,7 @@
 package com.yimark;
 
 import com.yimark.crypto.Ed25519Keys;
+import com.yimark.image.PdfUtils;
 import com.yimark.image.VisibleWatermark;
 import com.yimark.protect.ProtectionService;
 import com.yimark.trust.TrustStore;
@@ -14,16 +15,21 @@ import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.time.Instant;
 import javafx.application.Application;
+import javafx.concurrent.Task;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -47,6 +53,7 @@ public class Main extends Application {
     private final Slider opacity = new Slider(0.08, 0.45, 0.20);
     private final Slider watermarkSize = new Slider(0.01, 3.0, 1.0);
     private final Slider watermarkAngle = new Slider(-60, 60, -24);
+    private final Slider staggerRatio = new Slider(-1.0, 1.0, VisibleWatermark.DEFAULT_STAGGER_RATIO);
     private final ImageView preview = new ImageView();
 
     private BufferedImage sourceImage;
@@ -61,6 +68,7 @@ public class Main extends Application {
             log.setText("初始化失败: " + e);
         }
 
+        // Left sidebar - controls
         Button in = new Button("选择原图");
         Button out = new Button("选择输出");
         Button protect = new Button("生成保护文件");
@@ -71,38 +79,94 @@ public class Main extends Application {
         protect.setOnAction(e -> protect());
         verify.setOnAction(e -> verify());
         trust.setOnAction(e -> trustCurrentIssuer());
-        HBox buttons = new HBox(10, in, out, protect, verify, trust);
 
-        HBox settings = new HBox(10,
-                new Label("使用方"), issuer,
-                new Label("用途"), purpose,
-                new Label("透明度"), opacity,
-                new Label("大小"), watermarkSize,
-                new Label("角度°"), watermarkAngle);
-        settings.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        // Make buttons full width in sidebar
+        in.setMaxWidth(Double.MAX_VALUE);
+        out.setMaxWidth(Double.MAX_VALUE);
+        protect.setMaxWidth(Double.MAX_VALUE);
+        verify.setMaxWidth(Double.MAX_VALUE);
+        trust.setMaxWidth(Double.MAX_VALUE);
+        protect.setDefaultButton(true);
 
+        VBox actionBox = new VBox(8, in, out, protect, verify, trust);
+        actionBox.setPadding(new Insets(12));
+        actionBox.setAlignment(Pos.TOP_LEFT);
+
+        // Settings panel
+        Label issuerLabel = new Label("使用方");
+        Label purposeLabel = new Label("用途");
+        Label opacityLabel = new Label("透明度");
+        Label sizeLabel = new Label("大小");
+        Label angleLabel = new Label("角度°");
+        Label staggerLabel = new Label("错位");
+
+        issuer.setPrefWidth(180);
+        purpose.setPrefWidth(180);
+        opacity.setPrefWidth(180);
+        watermarkSize.setPrefWidth(180);
+        watermarkAngle.setPrefWidth(180);
+        staggerRatio.setPrefWidth(180);
+
+        VBox settingsBox = new VBox(8,
+                issuerLabel, issuer,
+                purposeLabel, purpose,
+                new Separator(),
+                opacityLabel, opacity,
+                sizeLabel, watermarkSize,
+                angleLabel, watermarkAngle,
+                staggerLabel, staggerRatio);
+        settingsBox.setPadding(new Insets(12));
+        settingsBox.setAlignment(Pos.TOP_LEFT);
+
+        VBox sidebar = new VBox(actionBox, new Separator(), settingsBox);
+        sidebar.setPrefWidth(240);
+        sidebar.setStyle("-fx-background-color: #f5f5f5;");
+
+        // Center - preview
         preview.setPreserveRatio(true);
         preview.setSmooth(true);
-        preview.setFitWidth(PREVIEW_MAX_WIDTH);
         ScrollPane previewPane = new ScrollPane(preview);
         previewPane.setPannable(true);
         previewPane.setStyle("-fx-background-color:#262626;");
         previewPane.setFitToWidth(true);
+        previewPane.setFitToHeight(true);
+
+        // Make preview responsive to viewport size
+        previewPane.viewportBoundsProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && newVal.getWidth() > 0 && newVal.getHeight() > 0) {
+                updatePreview(newVal.getWidth(), newVal.getHeight());
+            }
+        });
+
+        // Bottom - log
+        log.setEditable(false);
+        log.setPrefHeight(180);
+        log.setWrapText(true);
+        ScrollPane logPane = new ScrollPane(log);
+        logPane.setFitToWidth(true);
+        logPane.setPrefHeight(180);
+        logPane.setMaxHeight(180);
+
+        // Main layout
+        BorderPane root = new BorderPane();
+        root.setLeft(sidebar);
+        root.setCenter(previewPane);
+        root.setBottom(logPane);
+        BorderPane.setMargin(sidebar, new Insets(12));
+        BorderPane.setMargin(previewPane, new Insets(12, 12, 0, 12));
+        BorderPane.setMargin(logPane, new Insets(0, 12, 12, 12));
 
         issuer.textProperty().addListener((o, a, b) -> updatePreview());
         purpose.textProperty().addListener((o, a, b) -> updatePreview());
         opacity.valueProperty().addListener((o, a, b) -> updatePreview());
         watermarkSize.valueProperty().addListener((o, a, b) -> updatePreview());
         watermarkAngle.valueProperty().addListener((o, a, b) -> updatePreview());
+        staggerRatio.valueProperty().addListener((o, a, b) -> updatePreview());
 
-        log.setEditable(false);
-        VBox box = new VBox(12, buttons, settings, previewPane, log);
-        box.setPadding(new javafx.geometry.Insets(18));
-        VBox.setVgrow(previewPane, Priority.ALWAYS);
-        VBox.setVgrow(log, Priority.SOMETIMES);
-
-        stage.setTitle("SecureDoc - Java");
-        stage.setScene(new Scene(box, 1200, 900));
+        stage.setTitle("Yi Mark - 证件水印保护工具");
+        stage.setScene(new Scene(root, 1200, 900));
+        stage.setMinWidth(900);
+        stage.setMinHeight(700);
         stage.show();
         updatePreview();
     }
@@ -113,11 +177,31 @@ public class Main extends Application {
             preview.setImage(null);
             return;
         }
-        BufferedImage scaled = fitWidth(sourceImage, PREVIEW_MAX_WIDTH);
+        double vpWidth = preview.getScene() != null ? preview.getScene().getWidth() : PREVIEW_MAX_WIDTH;
+        double vpHeight = preview.getScene() != null ? preview.getScene().getHeight() : 600;
+        updatePreview(vpWidth, vpHeight);
+    }
+
+    private void updatePreview(double viewportWidth, double viewportHeight) {
+        if (sourceImage == null) {
+            preview.setImage(null);
+            return;
+        }
+        // Calculate scale to fit within viewport (with some margin)
+        double margin = 24;
+        double maxW = Math.max(100, viewportWidth - margin);
+        double maxH = Math.max(100, viewportHeight - margin);
+        double scale = Math.min(1.0, Math.min(maxW / sourceImage.getWidth(), maxH / sourceImage.getHeight()));
+        int scaledW = (int) Math.max(1, Math.round(sourceImage.getWidth() * scale));
+        int scaledH = (int) Math.max(1, Math.round(sourceImage.getHeight() * scale));
+
+        BufferedImage scaled = fitWidth(sourceImage, scaledW);
         int fontSize = fontSizeFor(scaled.getWidth());
         BufferedImage watermarked = VisibleWatermark.apply(scaled, issuer.getText(),
-                purpose.getText(), "", opacity.getValue(), fontSize, watermarkAngle.getValue());
+                purpose.getText(), "", opacity.getValue(), fontSize, watermarkAngle.getValue(), staggerRatio.getValue());
         preview.setImage(toFxImage(watermarked));
+        preview.setFitWidth(scaledW);
+        preview.setFitHeight(scaledH);
     }
 
     private int fontSizeFor(int imageWidth) {
@@ -127,25 +211,52 @@ public class Main extends Application {
 
     private void chooseInput(Stage stage) {
         FileChooser chooser = new FileChooser();
-        chooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg"));
+        chooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg"),
+                new FileChooser.ExtensionFilter("PDF", "*.pdf"));
         java.io.File file = chooser.showOpenDialog(stage);
         if (file != null) {
             source = file.toPath();
-            try {
-                sourceImage = javax.imageio.ImageIO.read(file);
-            } catch (IOException e) {
-                sourceImage = null;
+            log.setText("正在读取文件...");
+            loadImageAsync(file);
+        }
+    }
+
+    private void loadImageAsync(java.io.File file) {
+        Task<BufferedImage> task = new Task<>() {
+            @Override
+            protected BufferedImage call() throws IOException {
+                return readImage(file);
             }
+        };
+        task.setOnSucceeded(e -> {
+            sourceImage = task.getValue();
             log.setText("原图: " + source + (sourceImage == null ? " (无法读取)" : "")
                     + "  宽 " + (sourceImage == null ? "?" : sourceImage.getWidth()) + " px");
             updatePreview();
+        });
+        task.setOnFailed(e -> {
+            sourceImage = null;
+            log.setText("读取失败: " + task.getException().getMessage());
+            updatePreview();
+        });
+        new Thread(task).start();
+    }
+
+    private BufferedImage readImage(java.io.File file) throws IOException {
+        String name = file.getName().toLowerCase();
+        if (name.endsWith(".pdf")) {
+            return PdfUtils.readFirstPage(file.toPath());
         }
+        return javax.imageio.ImageIO.read(file);
     }
 
     private void chooseOutput(Stage stage) {
         FileChooser chooser = new FileChooser();
         chooser.setInitialFileName("secured-document.png");
+        chooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("PNG", "*.png"),
+                new FileChooser.ExtensionFilter("PDF", "*.pdf"));
         java.io.File file = chooser.showSaveDialog(stage);
         if (file != null) {
             output = file.toPath();
@@ -161,11 +272,12 @@ public class Main extends Application {
             int fontSize = fontSizeFor(sourceImage == null ? 800 : sourceImage.getWidth());
             ProtectionService.Result result = protection.protect(
                     source, output, issuer.getText(), purpose.getText(), opacity.getValue(),
-                    fontSize, watermarkAngle.getValue());
+                    fontSize, watermarkAngle.getValue(), staggerRatio.getValue());
             // 直接展示生成的成品图（不再二次加水印），保留 sourceImage 供后续预览
             BufferedImage finalImage = javax.imageio.ImageIO.read(result.image().toFile());
             if (finalImage != null) {
-                preview.setImage(toFxImage(fitWidth(finalImage, PREVIEW_MAX_WIDTH)));
+                sourceImage = finalImage;
+                updatePreview();
             }
             log.setText("保护成功\n"
                     + "PNG: " + result.image() + "\n"
