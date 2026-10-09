@@ -1,0 +1,30 @@
+# Build artifacts
+target/
+*.jar
+*.class
+*.dmg
+*.exe
+*.msi
+*.app/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local config
+~/.yimark/
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
+# Logs
+*.log
