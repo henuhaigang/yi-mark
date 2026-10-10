@@ -35,6 +35,10 @@
       <version>3.14.0</version>
       <configuration>
         <release>17</release>
+        <compilerArgs>
+          <arg>--add-reads</arg>
+          <arg>yi.mark=ALL-UNNAMED</arg>
+        </compilerArgs>
       </configuration>
     </plugin>
     <plugin>

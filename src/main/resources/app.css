@@ -1,0 +1,596 @@
+/* ============================================================
+   Yi Mark - Modern UI Theme (JavaFX Compatible)
+   Direct color values for maximum compatibility
+   ============================================================ */
+
+/* ============================================================
+   Color Constants (Light Mode)
+   ============================================================ */
+:root {
+  /* Primary Colors */
+  -fx-primary: #0066CC;
+  -fx-primary-hover: #0052A3;
+  -fx-primary-pressed: #004080;
+  -fx-primary-foreground: #FFFFFF;
+
+  /* Semantic Colors */
+  -fx-success: #34C759;
+  -fx-success-hover: #2EB550;
+  -fx-warning: #FF9F0A;
+  -fx-warning-hover: #E68E00;
+  -fx-danger: #FF3B30;
+  -fx-danger-hover: #E03028;
+
+  /* Background Colors */
+  -fx-bg-primary: #FFFFFF;
+  -fx-bg-secondary: #F5F5F7;
+  -fx-bg-tertiary: #E8E8ED;
+  -fx-bg-hover: #EDEDED;
+  -fx-bg-pressed: #DCDCDC;
+
+  /* Text Colors */
+  -fx-text-primary: #1D1D1F;
+  -fx-text-secondary: #86868B;
+  -fx-text-tertiary: #C7C7CC;
+  -fx-text-inverse: #FFFFFF;
+
+  /* Border Colors */
+  -fx-border-color: #D2D2D7;
+  -fx-border-focus: #0066CC;
+  -fx-border-error: #FF3B30;
+
+  /* Shadow Colors */
+  -fx-shadow-sm: rgba(0, 0, 0, 0.06);
+  -fx-shadow-md: rgba(0, 0, 0, 0.08);
+  -fx-shadow-lg: rgba(0, 0, 0, 0.12);
+  -fx-shadow-focus: rgba(0, 102, 204, 0.3);
+
+  /* Radii */
+  -fx-radius-sm: 6px;
+  -fx-radius-md: 8px;
+  -fx-radius-lg: 12px;
+  -fx-radius-xl: 16px;
+
+  /* Spacing */
+  -fx-spacing-xs: 4px;
+  -fx-spacing-sm: 8px;
+  -fx-spacing-md: 12px;
+  -fx-spacing-lg: 16px;
+  -fx-spacing-xl: 24px;
+
+  /* Font Sizes */
+  -fx-font-size-xs: 10px;
+  -fx-font-size-sm: 11px;
+  -fx-font-size-base: 12px;
+  -fx-font-size-md: 13px;
+  -fx-font-size-lg: 15px;
+  -fx-font-size-xl: 17px;
+
+  /* Layout */
+  -fx-sidebar-width: 280px;
+  -fx-header-height: 48px;
+  -fx-footer-height: 44px;
+}
+
+/* ============================================================
+   Dark Mode (activated by adding .dark style class to root)
+   ============================================================ */
+.root.dark {
+  -fx-primary: #0A84FF;
+  -fx-primary-hover: #409CFF;
+  -fx-primary-pressed: #0066CC;
+
+  -fx-success: #30D158;
+  -fx-warning: #FF9F0A;
+  -fx-danger: #FF453A;
+
+  -fx-bg-primary: #1D1D1F;
+  -fx-bg-secondary: #2C2C2E;
+  -fx-bg-tertiary: #3A3A3C;
+  -fx-bg-hover: #48484A;
+  -fx-bg-pressed: #3A3A3C;
+
+  -fx-text-primary: #FFFFFF;
+  -fx-text-secondary: #98989D;
+  -fx-text-tertiary: #636366;
+
+  -fx-border-color: #3A3A3C;
+  -fx-border-focus: #0A84FF;
+
+  -fx-shadow-sm: rgba(0, 0, 0, 0.2);
+  -fx-shadow-md: rgba(0, 0, 0, 0.3);
+  -fx-shadow-lg: rgba(0, 0, 0, 0.4);
+  -fx-shadow-focus: rgba(10, 132, 255, 0.4);
+}
+
+/* ============================================================
+   Global / Root
+   ============================================================ */
+.root {
+  -fx-font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -fx-font-size: 12px;
+  -fx-text-fill: #1D1D1F;
+  -fx-background-color: #FFFFFF;
+  -fx-background-radius: 0;
+}
+
+/* ============================================================
+   Layout Containers
+   ============================================================ */
+.main-container {
+  -fx-background-color: #FFFFFF;
+}
+
+.sidebar {
+  -fx-background-color: #F5F5F7;
+  -fx-background-radius: 12px 0 0 12px;
+  -fx-border-color: transparent #D2D2D7 transparent transparent;
+  -fx-border-width: 0 1px 0 0;
+  -fx-padding: 16px 12px;
+  -fx-spacing: 16px;
+}
+
+.sidebar-section {
+  -fx-spacing: 12px;
+}
+
+.sidebar-divider {
+  -fx-background-color: #D2D2D7;
+  -fx-pref-height: 1px;
+  -fx-max-height: 1px;
+  -fx-padding: 8px 0;
+}
+
+.preview-pane {
+  -fx-background-color: #1A1A1A;
+  -fx-background-radius: 12px;
+  -fx-border-color: transparent;
+  -fx-padding: 24px;
+  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0, 0, 4);
+}
+
+.preview-pane .viewport {
+  -fx-background-color: transparent;
+}
+
+.preview-image {
+  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.4), 24, 0, 0, 8);
+}
+
+.log-pane {
+  -fx-background-color: #F5F5F7;
+  -fx-background-radius: 0 0 12px 12px;
+  -fx-border-color: #D2D2D7 transparent transparent transparent;
+  -fx-border-width: 1px 0 0 0;
+  -fx-padding: 0;
+}
+
+.log-content {
+  -fx-background-color: transparent;
+  -fx-font-family: "SF Mono", "Monaco", "Menlo", "Consolas", monospace;
+  -fx-font-size: 10px;
+  -fx-text-fill: #86868B;
+  -fx-padding: 12px;
+}
+
+/* ============================================================
+   Typography
+   ============================================================ */
+.label {
+  -fx-text-fill: #86868B;
+  -fx-font-size: 11px;
+  -fx-font-weight: 500;
+  -fx-padding: 0 0 4px 0;
+}
+
+.label-title {
+  -fx-text-fill: #1D1D1F;
+  -fx-font-size: 15px;
+  -fx-font-weight: 600;
+}
+
+.label-subtitle {
+  -fx-text-fill: #C7C7CC;
+  -fx-font-size: 11px;
+}
+
+.empty-state-text {
+  -fx-text-fill: #C7C7CC;
+  -fx-font-size: 13px;
+  -fx-alignment: CENTER;
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+.button {
+  -fx-background-radius: 6px;
+  -fx-border-radius: 6px;
+  -fx-padding: 8px 12px;
+  -fx-font-size: 12px;
+  -fx-font-weight: 500;
+  -fx-cursor: hand;
+  -fx-transition: all 80ms cubic-bezier(0.4, 0, 0.2, 1);
+  -fx-focus-color: transparent;
+  -fx-faint-focus-color: transparent;
+}
+
+/* Primary Button */
+.button-primary {
+  -fx-background-color: #0066CC;
+  -fx-text-fill: #FFFFFF;
+  -fx-border-color: transparent;
+  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);
+}
+
+.button-primary:hover {
+  -fx-background-color: #0052A3;
+  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 12, 0, 0, 4);
+}
+
+.button-primary:pressed {
+  -fx-background-color: #004080;
+  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 4, 0, 0, 1);
+  -fx-scale-x: 0.98;
+  -fx-scale-y: 0.98;
+}
+
+.button-primary:focused {
+  -fx-effect: dropshadow(gaussian, rgba(0, 102, 204, 0.3), 12, 0, 0, 0);
+}
+
+/* Secondary Button */
+.button-secondary {
+  -fx-background-color: transparent;
+  -fx-text-fill: #0066CC;
+  -fx-border-color: #0066CC;
+  -fx-border-width: 1px;
+}
+
+.button-secondary:hover {
+  -fx-background-color: rgba(0, 102, 204, 0.1);
+}
+
+.button-secondary:pressed {
+  -fx-background-color: rgba(0, 102, 204, 0.2);
+}
+
+/* Danger Button */
+.button-danger {
+  -fx-background-color: #FF3B30;
+  -fx-text-fill: #FFFFFF;
+  -fx-border-color: transparent;
+}
+
+.button-danger:hover {
+  -fx-background-color: #E03028;
+}
+
+/* Ghost Button (icon only) */
+.button-ghost {
+  -fx-background-color: transparent;
+  -fx-text-fill: #86868B;
+  -fx-padding: 8px;
+  -fx-min-width: 36px;
+  -fx-min-height: 36px;
+}
+
+.button-ghost:hover {
+  -fx-background-color: #EDEDED;
+  -fx-text-fill: #1D1D1F;
+}
+
+.button-ghost:pressed {
+  -fx-background-color: #DCDCDC;
+}
+
+/* Sidebar Action Buttons - Enhanced 3D Style */
+.sidebar-button {
+  -fx-background-color: linear-gradient(to bottom, #FFFFFF, #F5F5F7);
+  -fx-text-fill: #1D1D1F;
+  -fx-alignment: CENTER_LEFT;
+  -fx-padding: 10px 12px;
+  -fx-border-radius: 8px;
+  -fx-background-radius: 8px;
+  -fx-font-size: 12px;
+  -fx-font-weight: 500;
+  -fx-graphic-text-gap: 10px;
+  -fx-max-width: Infinity;
+  -fx-border-color: #E0E0E0;
+  -fx-border-width: 1px;
+  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 4, 0, 0, 2);
+  -fx-cursor: hand;
+  -fx-transition: all 100ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-button:hover {
+  -fx-background-color: linear-gradient(to bottom, #F5F5F7, #EDEDED);
+  -fx-border-color: #D0D0D0;
+  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 4);
+  -fx-translate-y: -1px;
+}
+
+.sidebar-button:pressed {
+  -fx-background-color: linear-gradient(to bottom, #EDEDED, #E0E0E0);
+  -fx-border-color: #C8C8C8;
+  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 2, 0, 0, 1);
+  -fx-translate-y: 1px;
+}
+
+.sidebar-button:focused {
+  -fx-border-color: #0066CC;
+  -fx-border-width: 2px;
+  -fx-effect: dropshadow(gaussian, rgba(0, 102, 204, 0.3), 12, 0, 0, 0);
+}
+
+/* Primary Sidebar Button */
+.sidebar-button-primary {
+  -fx-background-color: linear-gradient(to bottom, #007AFF, #0052CC);
+  -fx-text-fill: #FFFFFF;
+  -fx-border-color: transparent;
+  -fx-effect: dropshadow(gaussian, rgba(0, 102, 204, 0.3), 8, 0, 0, 4);
+}
+
+.sidebar-button-primary:hover {
+  -fx-background-color: linear-gradient(to bottom, #0070E8, #0048B0);
+  -fx-effect: dropshadow(gaussian, rgba(0, 102, 204, 0.4), 12, 0, 0, 6);
+  -fx-translate-y: -1px;
+}
+
+.sidebar-button-primary:pressed {
+  -fx-background-color: linear-gradient(to bottom, #0052CC, #0040A0);
+  -fx-translate-y: 1px;
+}
+
+.sidebar-button-primary:focused {
+  -fx-effect: dropshadow(gaussian, rgba(0, 102, 204, 0.5), 16, 0, 0, 0);
+}
+
+/* Dark mode sidebar buttons */
+.root.dark .sidebar-button {
+  -fx-background-color: linear-gradient(to bottom, #2C2C2E, #1D1D1F);
+  -fx-text-fill: #FFFFFF;
+  -fx-border-color: #3A3A3C;
+}
+
+.root.dark .sidebar-button:hover {
+  -fx-background-color: linear-gradient(to bottom, #3A3A3C, #2C2C2E);
+  -fx-border-color: #48484A;
+}
+
+.root.dark .sidebar-button:pressed {
+  -fx-background-color: linear-gradient(to bottom, #1D1D1F, #151515);
+}
+
+.root.dark .sidebar-button-primary {
+  -fx-background-color: linear-gradient(to bottom, #0A84FF, #0066CC);
+}
+
+.root.dark .sidebar-button-primary:hover {
+  -fx-background-color: linear-gradient(to bottom, #409CFF, #0A84FF);
+}
+
+/* ============================================================
+   Text Fields
+   ============================================================ */
+.text-field {
+  -fx-background-color: #FFFFFF;
+  -fx-background-radius: 6px;
+  -fx-border-radius: 6px;
+  -fx-border-color: #D2D2D7;
+  -fx-border-width: 1px;
+  -fx-padding: 8px 12px;
+  -fx-font-size: 12px;
+  -fx-text-fill: #1D1D1F;
+  -fx-prompt-text-fill: #C7C7CC;
+  -fx-transition: all 80ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.text-field:hover {
+  -fx-border-color: #C7C7CC;
+}
+
+.text-field:focused {
+  -fx-border-color: #0066CC;
+  -fx-border-width: 2px;
+  -fx-effect: dropshadow(gaussian, rgba(0, 102, 204, 0.3), 8, 0, 0, 0);
+}
+
+.text-field:disabled {
+  -fx-opacity: 0.5;
+  -fx-background-color: #E8E8ED;
+}
+
+/* ============================================================
+   Sliders
+   ============================================================ */
+.slider {
+  -fx-padding: 12px 0;
+}
+
+.slider .track {
+  -fx-background-color: #E8E8ED;
+  -fx-background-radius: 2px;
+  -fx-pref-height: 4px;
+}
+
+.slider .thumb {
+  -fx-background-color: #0066CC;
+  -fx-background-radius: 50%;
+  -fx-pref-width: 16px;
+  -fx-pref-height: 16px;
+  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 4, 0, 0, 2);
+  -fx-transition: all 80ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slider .thumb:hover {
+  -fx-scale-x: 1.25;
+  -fx-scale-y: 1.25;
+}
+
+.slider:focused .thumb {
+  -fx-effect: dropshadow(gaussian, rgba(0, 102, 204, 0.3), 8, 0, 0, 0);
+}
+
+/* ============================================================
+   Separators
+   ============================================================ */
+.separator {
+  -fx-background-color: #D2D2D7;
+  -fx-pref-height: 1px;
+  -fx-max-height: 1px;
+}
+
+/* ============================================================
+   Scroll Panes
+   ============================================================ */
+.scroll-pane {
+  -fx-background-color: transparent;
+  -fx-border-color: transparent;
+  -fx-padding: 0;
+}
+
+.scroll-pane .viewport {
+  -fx-background-color: transparent;
+}
+
+.scroll-pane .scroll-bar {
+  -fx-background-color: transparent;
+  -fx-pref-width: 8px;
+  -fx-pref-height: 8px;
+}
+
+.scroll-pane .scroll-bar .thumb {
+  -fx-background-color: #C7C7CC;
+  -fx-background-radius: 4px;
+  -fx-border-radius: 4px;
+}
+
+.scroll-pane .scroll-bar .thumb:hover {
+  -fx-background-color: #86868B;
+}
+
+.scroll-pane .scroll-bar .track {
+  -fx-background-color: transparent;
+}
+
+.scroll-pane .scroll-bar .increment-button,
+.scroll-pane .scroll-bar .decrement-button {
+  -fx-background-color: transparent;
+  -fx-padding: 0;
+}
+
+/* ============================================================
+   Progress Bar
+   ============================================================ */
+.progress-bar {
+  -fx-background-color: #E8E8ED;
+  -fx-background-radius: 2px;
+  -fx-border-radius: 2px;
+  -fx-pref-height: 4px;
+}
+
+.progress-bar .bar {
+  -fx-background-color: #0066CC;
+  -fx-background-radius: 2px;
+  -fx-border-radius: 2px;
+}
+
+/* ============================================================
+   Tooltips
+   ============================================================ */
+.tooltip {
+  -fx-background-color: #1D1D1F;
+  -fx-text-fill: #FFFFFF;
+  -fx-font-size: 10px;
+  -fx-padding: 4px 8px;
+  -fx-background-radius: 6px;
+  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 8, 0, 0, 4);
+  -fx-wrap-text: true;
+  -fx-max-width: 200px;
+}
+
+/* ============================================================
+   Toast Notifications
+   ============================================================ */
+.toast {
+  -fx-background-color: #FFFFFF;
+  -fx-background-radius: 8px;
+  -fx-border-color: #D2D2D7;
+  -fx-border-width: 1px;
+  -fx-padding: 12px 16px;
+  -fx-spacing: 8px;
+  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 16, 0, 0, 8);
+}
+
+.toast-success {
+  -fx-border-left-color: #34C759;
+  -fx-border-left-width: 4px;
+}
+
+.toast-warning {
+  -fx-border-left-color: #FF9F0A;
+  -fx-border-left-width: 4px;
+}
+
+.toast-error {
+  -fx-border-left-color: #FF3B30;
+  -fx-border-left-width: 4px;
+}
+
+.toast-icon {
+  -fx-font-size: 15px;
+}
+
+.toast-message {
+  -fx-font-size: 11px;
+  -fx-text-fill: #1D1D1F;
+  -fx-font-weight: 500;
+}
+
+/* ============================================================
+   Empty State
+   ============================================================ */
+.empty-state {
+  -fx-alignment: CENTER;
+  -fx-spacing: 16px;
+  -fx-padding: 24px;
+}
+
+.empty-state-icon {
+  -fx-font-size: 48px;
+  -fx-text-fill: #C7C7CC;
+}
+
+.empty-state-title {
+  -fx-font-size: 15px;
+  -fx-font-weight: 600;
+  -fx-text-fill: #86868B;
+}
+
+.empty-state-subtitle {
+  -fx-font-size: 11px;
+  -fx-text-fill: #C7C7CC;
+  -fx-text-alignment: CENTER;
+  -fx-wrap-text: true;
+  -fx-max-width: 280px;
+}
+
+/* ============================================================
+   Status Bar
+   ============================================================ */
+.status-bar {
+  -fx-background-color: #F5F5F7;
+  -fx-padding: 4px 12px;
+  -fx-spacing: 12px;
+  -fx-alignment: CENTER_LEFT;
+}
+
+.status-item {
+  -fx-font-size: 10px;
+  -fx-text-fill: #86868B;
+}
+
+.status-indicator {
+  -fx-font-size: 10px;
+}

@@ -80,6 +80,13 @@ public class Main extends Application {
         verify.setOnAction(e -> verify());
         trust.setOnAction(e -> trustCurrentIssuer());
 
+        // Apply sidebar button styles
+        in.getStyleClass().addAll("sidebar-button");
+        out.getStyleClass().addAll("sidebar-button");
+        protect.getStyleClass().addAll("sidebar-button", "sidebar-button-primary");
+        verify.getStyleClass().addAll("sidebar-button");
+        trust.getStyleClass().addAll("sidebar-button");
+
         // Make buttons full width in sidebar
         in.setMaxWidth(Double.MAX_VALUE);
         out.setMaxWidth(Double.MAX_VALUE);
@@ -91,6 +98,7 @@ public class Main extends Application {
         VBox actionBox = new VBox(8, in, out, protect, verify, trust);
         actionBox.setPadding(new Insets(12));
         actionBox.setAlignment(Pos.TOP_LEFT);
+        actionBox.getStyleClass().add("sidebar-section");
 
         // Settings panel
         Label issuerLabel = new Label("使用方");
@@ -100,36 +108,56 @@ public class Main extends Application {
         Label angleLabel = new Label("角度°");
         Label staggerLabel = new Label("错位");
 
-        issuer.setPrefWidth(180);
-        purpose.setPrefWidth(180);
-        opacity.setPrefWidth(180);
-        watermarkSize.setPrefWidth(180);
-        watermarkAngle.setPrefWidth(180);
-        staggerRatio.setPrefWidth(180);
+        issuerLabel.getStyleClass().add("label");
+        purposeLabel.getStyleClass().add("label");
+        opacityLabel.getStyleClass().add("label");
+        sizeLabel.getStyleClass().add("label");
+        angleLabel.getStyleClass().add("label");
+        staggerLabel.getStyleClass().add("label");
+
+        issuer.setPrefWidth(220);
+        purpose.setPrefWidth(220);
+        opacity.setPrefWidth(220);
+        watermarkSize.setPrefWidth(220);
+        watermarkAngle.setPrefWidth(220);
+        staggerRatio.setPrefWidth(220);
+
+        issuer.getStyleClass().add("text-field");
+        purpose.getStyleClass().add("text-field");
+        opacity.getStyleClass().add("slider");
+        watermarkSize.getStyleClass().add("slider");
+        watermarkAngle.getStyleClass().add("slider");
+        staggerRatio.getStyleClass().add("slider");
+
+        Separator settingsDivider = new Separator();
+        settingsDivider.getStyleClass().add("separator");
 
         VBox settingsBox = new VBox(8,
                 issuerLabel, issuer,
                 purposeLabel, purpose,
-                new Separator(),
+                settingsDivider,
                 opacityLabel, opacity,
                 sizeLabel, watermarkSize,
                 angleLabel, watermarkAngle,
                 staggerLabel, staggerRatio);
         settingsBox.setPadding(new Insets(12));
         settingsBox.setAlignment(Pos.TOP_LEFT);
+        settingsBox.getStyleClass().add("sidebar-section");
 
         VBox sidebar = new VBox(actionBox, new Separator(), settingsBox);
-        sidebar.setPrefWidth(240);
-        sidebar.setStyle("-fx-background-color: #f5f5f5;");
+        sidebar.setPrefWidth(280);
+        sidebar.setMaxWidth(280);
+        sidebar.getStyleClass().add("sidebar");
 
         // Center - preview
         preview.setPreserveRatio(true);
         preview.setSmooth(true);
         ScrollPane previewPane = new ScrollPane(preview);
         previewPane.setPannable(true);
-        previewPane.setStyle("-fx-background-color:#262626;");
         previewPane.setFitToWidth(true);
         previewPane.setFitToHeight(true);
+        previewPane.getStyleClass().add("preview-pane");
+        preview.getStyleClass().add("preview-image");
 
         // Make preview responsive to viewport size
         previewPane.viewportBoundsProperty().addListener((obs, oldVal, newVal) -> {
@@ -142,10 +170,12 @@ public class Main extends Application {
         log.setEditable(false);
         log.setPrefHeight(180);
         log.setWrapText(true);
+        log.getStyleClass().add("log-content");
         ScrollPane logPane = new ScrollPane(log);
         logPane.setFitToWidth(true);
         logPane.setPrefHeight(180);
         logPane.setMaxHeight(180);
+        logPane.getStyleClass().add("log-pane");
 
         // Main layout
         BorderPane root = new BorderPane();
@@ -155,6 +185,7 @@ public class Main extends Application {
         BorderPane.setMargin(sidebar, new Insets(12));
         BorderPane.setMargin(previewPane, new Insets(12, 12, 0, 12));
         BorderPane.setMargin(logPane, new Insets(0, 12, 12, 12));
+        root.getStyleClass().add("main-container");
 
         issuer.textProperty().addListener((o, a, b) -> updatePreview());
         purpose.textProperty().addListener((o, a, b) -> updatePreview());
@@ -164,10 +195,16 @@ public class Main extends Application {
         staggerRatio.valueProperty().addListener((o, a, b) -> updatePreview());
 
         stage.setTitle("Yi Mark - 证件水印保护工具");
-        stage.setScene(new Scene(root, 1200, 900));
+        Scene scene = new Scene(root, 1200, 900);
+        scene.getStylesheets().add(getClass().getResource("/app.css").toExternalForm());
+        stage.setScene(scene);
         stage.setMinWidth(900);
         stage.setMinHeight(700);
         stage.show();
+
+        // Ensure preview updates when scene/layout is ready
+        scene.widthProperty().addListener((obs, oldVal, newVal) -> updatePreview());
+        scene.heightProperty().addListener((obs, oldVal, newVal) -> updatePreview());
         updatePreview();
     }
 
@@ -273,11 +310,10 @@ public class Main extends Application {
             ProtectionService.Result result = protection.protect(
                     source, output, issuer.getText(), purpose.getText(), opacity.getValue(),
                     fontSize, watermarkAngle.getValue(), staggerRatio.getValue());
-            // 直接展示生成的成品图（不再二次加水印），保留 sourceImage 供后续预览
+            // 直接展示生成的成品图（已含水印），不再重新加水印
             BufferedImage finalImage = javax.imageio.ImageIO.read(result.image().toFile());
             if (finalImage != null) {
-                sourceImage = finalImage;
-                updatePreview();
+                preview.setImage(toFxImage(fitWidth(finalImage, PREVIEW_MAX_WIDTH)));
             }
             log.setText("保护成功\n"
                     + "PNG: " + result.image() + "\n"
