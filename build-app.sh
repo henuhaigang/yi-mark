@@ -42,7 +42,7 @@ MAVEN_REPO="${MAVEN_REPO:-$HOME/.m2/repository}"
 
 MODULE_JAR="target/yi-mark-${VERSION}.jar"
 
-# 检测架构并设置 JavaFX classifier
+# 检测平台
 if [[ "$OSTYPE" == "darwin"* ]]; then
   ARCH=$(uname -m)
   if [[ "$ARCH" == "arm64" ]]; then
@@ -50,38 +50,44 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   else
     JAVAFX_CLASSIFIER="mac"
   fi
+  PATH_SEP=":"
 elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]; then
   # Windows (Git Bash, MSYS2, Cygwin)
   JAVAFX_CLASSIFIER="win"
+  PATH_SEP=";"
 else
   JAVAFX_CLASSIFIER=""
+  PATH_SEP=":"
 fi
+
+echo "OSTYPE=$OSTYPE, PATH_SEP=$PATH_SEP, JAVAFX_CLASSIFIER=$JAVAFX_CLASSIFIER"
+
+MAVEN_REPO=$(mvn -q -Dexec.executable=echo -Dexec.args='${settings.localRepository}' --non-recursive exec:exec 2>/dev/null)
+MAVEN_REPO="${MAVEN_REPO:-$HOME/.m2/repository}"
+
+MODULE_JAR="target/yi-mark-${VERSION}.jar"
+
+JAVAFX_VERSION="17.0.6"
+PDFBOX_VERSION="3.0.3"
 
 JAVAFX_MODULE_PATH="${MAVEN_REPO}/org/openjfx/javafx-controls/${JAVAFX_VERSION}/javafx-controls-${JAVAFX_VERSION}.jar"
 for mod in javafx-graphics javafx-base; do
-  JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}:${MAVEN_REPO}/org/openjfx/${mod}/${JAVAFX_VERSION}/${mod}-${JAVAFX_VERSION}.jar"
+  JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}${PATH_SEP}${MAVEN_REPO}/org/openjfx/${mod}/${JAVAFX_VERSION}/${mod}-${JAVAFX_VERSION}.jar"
   if [[ -n "$JAVAFX_CLASSIFIER" ]]; then
-    JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}:${MAVEN_REPO}/org/openjfx/${mod}/${JAVAFX_VERSION}/${mod}-${JAVAFX_VERSION}-${JAVAFX_CLASSIFIER}.jar"
+    JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}${PATH_SEP}${MAVEN_REPO}/org/openjfx/${mod}/${JAVAFX_VERSION}/${mod}-${JAVAFX_VERSION}-${JAVAFX_CLASSIFIER}.jar"
   fi
 done
 if [[ -n "$JAVAFX_CLASSIFIER" ]]; then
-  JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}:${MAVEN_REPO}/org/openjfx/javafx-controls/${JAVAFX_VERSION}/javafx-controls-${JAVAFX_VERSION}-${JAVAFX_CLASSIFIER}.jar"
+  JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}${PATH_SEP}${MAVEN_REPO}/org/openjfx/javafx-controls/${JAVAFX_VERSION}/javafx-controls-${JAVAFX_VERSION}-${JAVAFX_CLASSIFIER}.jar"
 fi
 
-# 验证 JavaFX JAR 存在 (兼容 Windows 路径中的盘符冒号)
-# Windows 路径包含盘符 (C:\)，不能简单按冒号分割
-# 使用 find 命令逐个验证
+echo "JAVAFX_MODULE_PATH: $JAVAFX_MODULE_PATH"
+
+# 验证 JavaFX JAR 存在
 validate_jars() {
   local module_path="$1"
-  # 将模块路径转换为数组，处理 Windows 盘符
-  if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]; then
-    # Windows: 使用 ; 作为分隔符（Java 支持），避免盘符冒号干扰
-    # 将 : 替换为 ; 再分割
-    local normalized="${module_path//:;/;}"
-    IFS=';' read -ra JARS <<< "$normalized"
-  else
-    IFS=':' read -ra JARS <<< "$module_path"
-  fi
+  local sep="$2"
+  IFS="$sep" read -ra JARS <<< "$module_path"
   for jar in "${JARS[@]}"; do
     if [[ ! -f "$jar" ]]; then
       echo "ERROR: JavaFX JAR not found: $jar"
@@ -91,11 +97,11 @@ validate_jars() {
   return 0
 }
 
-validate_jars "$JAVAFX_MODULE_PATH" || exit 1
+validate_jars "$JAVAFX_MODULE_PATH" "$PATH_SEP" || exit 1
 
 # 创建运行时镜像（仅 JavaFX + 标准库模块）
 echo "=== 创建运行时镜像（JavaFX + 标准库）==="
-echo "JAVAFX_MODULE_PATH: ${JAVAFX_MODULE_PATH}"
+echo "JAVAFX_MODULE_PATH: $JAVAFX_MODULE_PATH"
 rm -rf target/runtime
 jlink --module-path "${JAVAFX_MODULE_PATH}" \
   --add-modules "javafx.controls,javafx.graphics,javafx.base,java.base,java.logging,java.xml,java.desktop" \
@@ -124,7 +130,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   # --module-path 包含：运行时镜像 + 我们的模块化 JAR
   # --add-modules 添加我们的模块
   # PDFBox 等非模块化依赖通过 --resource-dir 复制，并在 --java-options 中指定 classpath
-  FULL_MODULE_PATH="target/runtime:target/runtime/mods"
+  FULL_MODULE_PATH="target/runtime${PATH_SEP}target/runtime/mods"
   
   jpackage --type dmg \
     --name "${APP_NAME}" \
@@ -165,7 +171,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   echo "✅ macOS 包已生成到 target/dist/"
 else
   # Windows: 生成 .exe 和 .msi
-  FULL_MODULE_PATH="target/runtime;target/runtime/mods"
+  FULL_MODULE_PATH="target/runtime${PATH_SEP}target/runtime/mods"
   
   jpackage --type exe \
     --name "${APP_NAME}" \
