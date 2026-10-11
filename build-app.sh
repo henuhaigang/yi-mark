@@ -82,6 +82,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     --dest target/dist \
     --java-options "-Xmx512m -cp lib/pdfbox-${PDFBOX_VERSION}.jar:lib/pdfbox-io-${PDFBOX_VERSION}.jar:lib/fontbox-${PDFBOX_VERSION}.jar:lib/commons-logging-1.3.3.jar" \
     --resource-dir target/runtime/lib \
+    --icon src/main/resources/yi-mark.icns \
     --mac-package-identifier "com.yimark.app" \
     --mac-package-name "${APP_NAME}" \
     --temp "target/tmp-dmg-${TIMESTAMP}" \
@@ -99,6 +100,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     --dest target/dist \
     --java-options "-Xmx512m -cp lib/pdfbox-${PDFBOX_VERSION}.jar:lib/pdfbox-io-${PDFBOX_VERSION}.jar:lib/fontbox-${PDFBOX_VERSION}.jar:lib/commons-logging-1.3.3.jar" \
     --resource-dir target/runtime/lib \
+    --icon src/main/resources/yi-mark.icns \
     --mac-package-identifier "com.yimark.app" \
     --mac-package-name "${APP_NAME}" \
     --temp "target/tmp-app-${TIMESTAMP}" \
