@@ -68,14 +68,30 @@ if [[ -n "$JAVAFX_CLASSIFIER" ]]; then
   JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}:${MAVEN_REPO}/org/openjfx/javafx-controls/${JAVAFX_VERSION}/javafx-controls-${JAVAFX_VERSION}-${JAVAFX_CLASSIFIER}.jar"
 fi
 
-# 验证 JavaFX JAR 存在 (兼容 Windows 路径中的冒号)
-IFS=':' read -ra JARS <<< "$JAVAFX_MODULE_PATH"
-for jar in "${JARS[@]}"; do
-  if [[ ! -f "$jar" ]]; then
-    echo "ERROR: JavaFX JAR not found: $jar"
-    exit 1
+# 验证 JavaFX JAR 存在 (兼容 Windows 路径中的盘符冒号)
+# Windows 路径包含盘符 (C:\)，不能简单按冒号分割
+# 使用 find 命令逐个验证
+validate_jars() {
+  local module_path="$1"
+  # 将模块路径转换为数组，处理 Windows 盘符
+  if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]; then
+    # Windows: 使用 ; 作为分隔符（Java 支持），避免盘符冒号干扰
+    # 将 : 替换为 ; 再分割
+    local normalized="${module_path//:;/;}"
+    IFS=';' read -ra JARS <<< "$normalized"
+  else
+    IFS=':' read -ra JARS <<< "$module_path"
   fi
-done
+  for jar in "${JARS[@]}"; do
+    if [[ ! -f "$jar" ]]; then
+      echo "ERROR: JavaFX JAR not found: $jar"
+      return 1
+    fi
+  done
+  return 0
+}
+
+validate_jars "$JAVAFX_MODULE_PATH" || exit 1
 
 # 创建运行时镜像（仅 JavaFX + 标准库模块）
 echo "=== 创建运行时镜像（JavaFX + 标准库）==="
