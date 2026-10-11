@@ -39,16 +39,36 @@ MAVEN_REPO="$HOME/.m2/repository"
 
 MODULE_JAR="target/yi-mark-${VERSION}.jar"
 
+# 检测架构并设置 JavaFX classifier
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  ARCH=$(uname -m)
+  if [[ "$ARCH" == "arm64" ]]; then
+    JAVAFX_CLASSIFIER="mac-aarch64"
+  else
+    JAVAFX_CLASSIFIER="mac"
+  fi
+else
+  JAVAFX_CLASSIFIER=""
+fi
+
 JAVAFX_MODULE_PATH="${MAVEN_REPO}/org/openjfx/javafx-controls/${JAVAFX_VERSION}/javafx-controls-${JAVAFX_VERSION}.jar"
 for mod in javafx-graphics javafx-base; do
   JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}:${MAVEN_REPO}/org/openjfx/${mod}/${JAVAFX_VERSION}/${mod}-${JAVAFX_VERSION}.jar"
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}:${MAVEN_REPO}/org/openjfx/${mod}/${JAVAFX_VERSION}/${mod}-${JAVAFX_VERSION}-mac-aarch64.jar"
+  if [[ -n "$JAVAFX_CLASSIFIER" ]]; then
+    JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}:${MAVEN_REPO}/org/openjfx/${mod}/${JAVAFX_VERSION}/${mod}-${JAVAFX_VERSION}-${JAVAFX_CLASSIFIER}.jar"
   fi
 done
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}:${MAVEN_REPO}/org/openjfx/javafx-controls/${JAVAFX_VERSION}/javafx-controls-${JAVAFX_VERSION}-mac-aarch64.jar"
+if [[ -n "$JAVAFX_CLASSIFIER" ]]; then
+  JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}:${MAVEN_REPO}/org/openjfx/javafx-controls/${JAVAFX_VERSION}/javafx-controls-${JAVAFX_VERSION}-${JAVAFX_CLASSIFIER}.jar"
 fi
+
+# 验证 JavaFX JAR 存在
+for jar in ${JAVAFX_MODULE_PATH//:/ }; do
+  if [[ ! -f "$jar" ]]; then
+    echo "ERROR: JavaFX JAR not found: $jar"
+    exit 1
+  fi
+done
 
 # 创建运行时镜像（仅 JavaFX + 标准库模块）
 echo "=== 创建运行时镜像（JavaFX + 标准库）==="
