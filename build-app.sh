@@ -68,8 +68,9 @@ if [[ -n "$JAVAFX_CLASSIFIER" ]]; then
   JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}:${MAVEN_REPO}/org/openjfx/javafx-controls/${JAVAFX_VERSION}/javafx-controls-${JAVAFX_VERSION}-${JAVAFX_CLASSIFIER}.jar"
 fi
 
-# 验证 JavaFX JAR 存在
-for jar in ${JAVAFX_MODULE_PATH//:/ }; do
+# 验证 JavaFX JAR 存在 (兼容 Windows 路径中的冒号)
+IFS=':' read -ra JARS <<< "$JAVAFX_MODULE_PATH"
+for jar in "${JARS[@]}"; do
   if [[ ! -f "$jar" ]]; then
     echo "ERROR: JavaFX JAR not found: $jar"
     exit 1
