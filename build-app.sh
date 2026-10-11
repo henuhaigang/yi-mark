@@ -35,7 +35,10 @@ mvn -B package -DskipTests
 # 模块路径（仅 JavaFX 模块，用于 jlink）
 JAVAFX_VERSION="17.0.6"
 PDFBOX_VERSION="3.0.3"
-MAVEN_REPO="$HOME/.m2/repository"
+
+# 使用 Maven 查找本地仓库路径，兼容跨平台
+MAVEN_REPO=$(mvn -q -Dexec.executable=echo -Dexec.args='${settings.localRepository}' --non-recursive exec:exec 2>/dev/null)
+MAVEN_REPO="${MAVEN_REPO:-$HOME/.m2/repository}"
 
 MODULE_JAR="target/yi-mark-${VERSION}.jar"
 
@@ -47,6 +50,9 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   else
     JAVAFX_CLASSIFIER="mac"
   fi
+elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]; then
+  # Windows (Git Bash, MSYS2, Cygwin)
+  JAVAFX_CLASSIFIER="win"
 else
   JAVAFX_CLASSIFIER=""
 fi
@@ -72,6 +78,7 @@ done
 
 # 创建运行时镜像（仅 JavaFX + 标准库模块）
 echo "=== 创建运行时镜像（JavaFX + 标准库）==="
+echo "JAVAFX_MODULE_PATH: ${JAVAFX_MODULE_PATH}"
 rm -rf target/runtime
 jlink --module-path "${JAVAFX_MODULE_PATH}" \
   --add-modules "javafx.controls,javafx.graphics,javafx.base,java.base,java.logging,java.xml,java.desktop" \
