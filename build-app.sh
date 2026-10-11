@@ -3,14 +3,26 @@
 # 用法: ./build-app.sh [mac|win|all]
 # macOS 上运行可生成 macOS 安装包
 # Windows 上运行可生成 Windows 安装包
+#
+# 环境变量:
+#   VERSION - 应用版本号 (默认从 pom.xml 读取)
 
 set -e
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VERSION="1.0.0"
+cd "$PROJECT_DIR"
+
+# 从 pom.xml 读取版本，或使用环境变量 VERSION
+if [ -z "$VERSION" ]; then
+  VERSION=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec 2>/dev/null)
+fi
+VERSION="${VERSION:-1.0.0}"
+
 APP_NAME="yi-mark"
 MAIN_CLASS="com.yimark.Main"
 MODULE="yi.mark"
+
+echo "=== Building version: $VERSION ==="
 
 cd "$PROJECT_DIR"
 

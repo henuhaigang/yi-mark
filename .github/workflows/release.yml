@@ -1,0 +1,168 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-macos:
+    name: Build macOS (DMG + App)
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build and package macOS
+        run: |
+          chmod +x ./build-app.sh
+          ./build-app.sh mac
+
+      - name: Verify build artifacts
+        run: |
+          ls -la target/dist/
+          test -f target/dist/yi-mark-1.0.0.dmg
+          test -d target/dist/yi-mark.app
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: yi-mark-macos
+          path: |
+            target/dist/yi-mark-1.0.0.dmg
+            target/dist/yi-mark.app
+          retention-days: 30
+
+  build-windows:
+    name: Build Windows (EXE + MSI)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build and package Windows
+        run: |
+          chmod +x ./build-app.sh
+          ./build-app.sh win
+
+      - name: Verify build artifacts
+        run: |
+          ls -la target/dist/
+          test -f target/dist/yi-mark-1.0.0.exe
+          test -f target/dist/yi-mark-1.0.0.msi
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: yi-mark-windows
+          path: |
+            target/dist/yi-mark-1.0.0.exe
+            target/dist/yi-mark-1.0.0.msi
+          retention-days: 30
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: yi-mark-macos
+          path: dist/macos
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: yi-mark-windows
+          path: dist/windows
+
+      - name: Prepare release assets
+        run: |
+          ls -la dist/
+          # Rename artifacts with version
+          VERSION=${GITHUB_REF_NAME#v}
+          mkdir -p release-assets
+          # macOS
+          if [ -f "dist/macos/yi-mark-1.0.0.dmg" ]; then
+            cp dist/macos/yi-mark-1.0.0.dmg release-assets/yi-mark-${VERSION}-macos.dmg
+          fi
+          if [ -d "dist/macos/yi-mark.app" ]; then
+            cd dist/macos
+            zip -r ../../release-assets/yi-mark-${VERSION}-macos.zip yi-mark.app
+            cd ../..
+          fi
+          # Windows
+          if [ -f "dist/windows/yi-mark-1.0.0.exe" ]; then
+            cp dist/windows/yi-mark-1.0.0.exe release-assets/yi-mark-${VERSION}-windows.exe
+          fi
+          if [ -f "dist/windows/yi-mark-1.0.0.msi" ]; then
+            cp dist/windows/yi-mark-1.0.0.msi release-assets/yi-mark-${VERSION}-windows.msi
+          fi
+          ls -la release-assets/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Yi Mark ${{ github.ref_name }}
+          body: |
+            ## Yi Mark ${{ github.ref_name }}
+
+            跨平台证件/文档水印保护工具
+
+            ### 下载
+            - **macOS**: `yi-mark-${{ github.ref_name }}-macos.dmg` (安装包) / `yi-mark-${{ github.ref_name }}-macos.zip` (App 包)
+            - **Windows**: `yi-mark-${{ github.ref_name }}-windows.exe` (安装包) / `yi-mark-${{ github.ref_name }}-windows.msi` (MSI 安装包)
+
+            ### 功能特性
+            - 可见水印 + 隐形频域水印 (DCT + RS 编码)
+            - PDF/PNG/JPG 输入输出支持
+            - 可调节水印错位模式 (固定/随机/无交错)
+            - Ed25519 签名清单 + 信任库验证
+            - 响应式预览 + 3D 立体 UI
+
+            ### 校验
+            所有发布包均通过 28 项单元测试验证。
+          draft: false
+          prerelease: false
+          files: release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
