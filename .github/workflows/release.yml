@@ -77,11 +77,12 @@ jobs:
             ${{ runner.os }}-maven-
 
       - name: Build and package Windows
+        shell: bash
         run: |
-          chmod +x ./build-app.sh
           ./build-app.sh win
 
       - name: Verify build artifacts
+        shell: bash
         run: |
           ls -la target/dist/
           test -f target/dist/yi-mark-1.0.0.exe
