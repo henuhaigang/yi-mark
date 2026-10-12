@@ -154,6 +154,8 @@ public class Main extends Application {
 
         Separator settingsDivider = new Separator();
         settingsDivider.getStyleClass().add("separator");
+        Separator mosaicDivider = new Separator();
+        mosaicDivider.getStyleClass().add("separator");
 
         VBox settingsBox = new VBox(8,
                 issuerLabel, issuer,
@@ -163,7 +165,7 @@ public class Main extends Application {
                 sizeLabel, watermarkSize,
                 angleLabel, watermarkAngle,
                 staggerLabel, staggerRatio,
-                settingsDivider,
+                mosaicDivider,
                 mosaicLabel, mosaicEnabled,
                 mosaicBlockSizeLabel, mosaicBlockSize);
         settingsBox.setPadding(new Insets(12));
@@ -267,7 +269,7 @@ public class Main extends Application {
 
         // Apply mosaic if enabled
         if (mosaicEnabled.isSelected()) {
-            int mosaicSize = mosaicBlockSize.getValue().intValue();
+            int mosaicSize = (int) mosaicBlockSize.getValue();
             // Apply full-image mosaic for preview
             watermarked = com.yimark.image.ImageOps.applyMosaic(watermarked, 0, 0, watermarked.getWidth(), watermarked.getHeight(), mosaicSize);
         }
@@ -344,7 +346,7 @@ public class Main extends Application {
         try {
             int fontSize = fontSizeFor(sourceImage == null ? 800 : sourceImage.getWidth());
             boolean enableMosaic = mosaicEnabled.isSelected();
-            int mosaicSize = mosaicBlockSize.getValue().intValue();
+            int mosaicSize = (int) mosaicBlockSize.getValue();
             ProtectionService.Result result = protection.protect(
                     source, output, issuer.getText(), purpose.getText(), opacity.getValue(),
                     fontSize, watermarkAngle.getValue(), staggerRatio.getValue(),
