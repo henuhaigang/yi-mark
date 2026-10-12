@@ -49,4 +49,69 @@ public final class ImageOps {
         graphics.dispose();
         return out;
     }
+
+    /**
+     * Applies a mosaic (pixelation) effect to a rectangular region of the image.
+     *
+     * @param source     the source image (modified in place)
+     * @param x          left coordinate of the region
+     * @param y          top coordinate of the region
+     * @param width      width of the region
+     * @param height     height of the region
+     * @param blockSize  size of each mosaic block in pixels (e.g., 10, 20, 30)
+     * @return the modified image (same instance as source)
+     */
+    public static BufferedImage applyMosaic(BufferedImage source, int x, int y, int width, int height, int blockSize) {
+        if (blockSize <= 1) return source;
+        int imgW = source.getWidth();
+        int imgH = source.getHeight();
+        // Clamp region to image bounds
+        x = Math.max(0, Math.min(x, imgW - 1));
+        y = Math.max(0, Math.min(y, imgH - 1));
+        width = Math.min(width, imgW - x);
+        height = Math.min(height, imgH - y);
+        if (width <= 0 || height <= 0) return source;
+
+        // Create a copy of the region to sample from
+        BufferedImage region = source.getSubimage(x, y, width, height);
+        int regionW = region.getWidth();
+        int regionH = region.getHeight();
+
+        Graphics2D g = source.createGraphics();
+        // Draw mosaic blocks
+        for (int by = 0; by < regionH; by += blockSize) {
+            for (int bx = 0; bx < regionW; bx += blockSize) {
+                int bw = Math.min(blockSize, regionW - bx);
+                int bh = Math.min(blockSize, regionH - by);
+                // Sample the center pixel of the block
+                int sampleX = bx + bw / 2;
+                int sampleY = by + bh / 2;
+                int rgb = region.getRGB(sampleX, sampleY);
+                // Fill the block
+                g.setColor(new java.awt.Color(rgb));
+                g.fillRect(x + bx, y + by, bw, bh);
+            }
+        }
+        g.dispose();
+        return source;
+    }
+
+    /**
+     * Applies mosaic to multiple rectangular regions.
+     *
+     * @param source   the source image (modified in place)
+     * @param regions  array of [x, y, width, height] for each region
+     * @param blockSize mosaic block size in pixels
+     * @return the modified image
+     */
+    public static BufferedImage applyMosaicRegions(BufferedImage source, int[][] regions, int blockSize) {
+        for (int[] r : regions) {
+            if (r.length >= 4) {
+                applyMosaic(source, r[0], r[1], r[2], r[3], blockSize);
+            }
+        }
+        return source;
+    }
+
+    private ImageOps() {}
 }

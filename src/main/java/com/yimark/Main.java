@@ -54,6 +54,11 @@ public class Main extends Application {
     private final Slider watermarkSize = new Slider(0.01, 3.0, 1.0);
     private final Slider watermarkAngle = new Slider(-60, 60, -24);
     private final Slider staggerRatio = new Slider(-1.0, 1.0, VisibleWatermark.DEFAULT_STAGGER_RATIO);
+    
+    // Mosaic controls
+    private final javafx.scene.control.CheckBox mosaicEnabled = new javafx.scene.control.CheckBox("启用马赛克");
+    private final Slider mosaicBlockSize = new Slider(2, 50, 10);
+    private final javafx.scene.control.Label mosaicBlockSizeLabel = new javafx.scene.control.Label("马赛克块大小: 10");
     private final ImageView preview = new ImageView();
 
     private BufferedImage sourceImage;
@@ -107,6 +112,7 @@ public class Main extends Application {
         Label sizeLabel = new Label("大小");
         Label angleLabel = new Label("角度°");
         Label staggerLabel = new Label("错位");
+        Label mosaicLabel = new Label("马赛克");
 
         issuerLabel.getStyleClass().add("label");
         purposeLabel.getStyleClass().add("label");
@@ -114,6 +120,7 @@ public class Main extends Application {
         sizeLabel.getStyleClass().add("label");
         angleLabel.getStyleClass().add("label");
         staggerLabel.getStyleClass().add("label");
+        mosaicLabel.getStyleClass().add("label");
 
         issuer.setPrefWidth(220);
         purpose.setPrefWidth(220);
@@ -121,6 +128,9 @@ public class Main extends Application {
         watermarkSize.setPrefWidth(220);
         watermarkAngle.setPrefWidth(220);
         staggerRatio.setPrefWidth(220);
+        mosaicEnabled.setPrefWidth(220);
+        mosaicBlockSize.setPrefWidth(220);
+        mosaicBlockSizeLabel.setPrefWidth(220);
 
         issuer.getStyleClass().add("text-field");
         purpose.getStyleClass().add("text-field");
@@ -128,6 +138,19 @@ public class Main extends Application {
         watermarkSize.getStyleClass().add("slider");
         watermarkAngle.getStyleClass().add("slider");
         staggerRatio.getStyleClass().add("slider");
+        mosaicBlockSize.getStyleClass().add("slider");
+        mosaicBlockSizeLabel.getStyleClass().add("label");
+        mosaicEnabled.getStyleClass().add("check-box");
+
+        mosaicBlockSize.valueProperty().addListener((obs, oldVal, newVal) -> {
+            mosaicBlockSizeLabel.setText("马赛克块大小: " + newVal.intValue());
+            updatePreview();
+        });
+        mosaicEnabled.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            mosaicBlockSize.setDisable(!newVal);
+            mosaicBlockSizeLabel.setDisable(!newVal);
+            updatePreview();
+        });
 
         Separator settingsDivider = new Separator();
         settingsDivider.getStyleClass().add("separator");
@@ -139,7 +162,10 @@ public class Main extends Application {
                 opacityLabel, opacity,
                 sizeLabel, watermarkSize,
                 angleLabel, watermarkAngle,
-                staggerLabel, staggerRatio);
+                staggerLabel, staggerRatio,
+                settingsDivider,
+                mosaicLabel, mosaicEnabled,
+                mosaicBlockSizeLabel, mosaicBlockSize);
         settingsBox.setPadding(new Insets(12));
         settingsBox.setAlignment(Pos.TOP_LEFT);
         settingsBox.getStyleClass().add("sidebar-section");
@@ -193,6 +219,8 @@ public class Main extends Application {
         watermarkSize.valueProperty().addListener((o, a, b) -> updatePreview());
         watermarkAngle.valueProperty().addListener((o, a, b) -> updatePreview());
         staggerRatio.valueProperty().addListener((o, a, b) -> updatePreview());
+        mosaicEnabled.selectedProperty().addListener((o, a, b) -> updatePreview());
+        mosaicBlockSize.valueProperty().addListener((o, a, b) -> updatePreview());
 
         stage.setTitle("Yi Mark - 证件水印保护工具");
         Scene scene = new Scene(root, 1200, 900);
@@ -236,6 +264,14 @@ public class Main extends Application {
         int fontSize = fontSizeFor(scaled.getWidth());
         BufferedImage watermarked = VisibleWatermark.apply(scaled, issuer.getText(),
                 purpose.getText(), "", opacity.getValue(), fontSize, watermarkAngle.getValue(), staggerRatio.getValue());
+
+        // Apply mosaic if enabled
+        if (mosaicEnabled.isSelected()) {
+            int mosaicSize = mosaicBlockSize.getValue().intValue();
+            // Apply full-image mosaic for preview
+            watermarked = com.yimark.image.ImageOps.applyMosaic(watermarked, 0, 0, watermarked.getWidth(), watermarked.getHeight(), mosaicSize);
+        }
+
         preview.setImage(toFxImage(watermarked));
         preview.setFitWidth(scaledW);
         preview.setFitHeight(scaledH);
@@ -307,9 +343,12 @@ public class Main extends Application {
         }
         try {
             int fontSize = fontSizeFor(sourceImage == null ? 800 : sourceImage.getWidth());
+            boolean enableMosaic = mosaicEnabled.isSelected();
+            int mosaicSize = mosaicBlockSize.getValue().intValue();
             ProtectionService.Result result = protection.protect(
                     source, output, issuer.getText(), purpose.getText(), opacity.getValue(),
-                    fontSize, watermarkAngle.getValue(), staggerRatio.getValue());
+                    fontSize, watermarkAngle.getValue(), staggerRatio.getValue(),
+                    enableMosaic, mosaicSize);
             // 直接展示生成的成品图（已含水印），不再重新加水印
             BufferedImage finalImage = javax.imageio.ImageIO.read(result.image().toFile());
             if (finalImage != null) {

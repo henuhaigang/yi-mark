@@ -4,6 +4,7 @@ import com.yimark.crypto.BindingSecret;
 import com.yimark.crypto.Digests;
 import com.yimark.crypto.Ed25519Keys;
 import com.yimark.image.GeometryMarkers;
+import com.yimark.image.ImageOps;
 import com.yimark.image.PdfUtils;
 import com.yimark.image.VisibleWatermark;
 import com.yimark.manifest.Manifest;
@@ -40,7 +41,8 @@ public final class ProtectionService {
     }
 
     public Result protect(Path source, Path output, String issuer, String purpose,
-                          double opacity, int fontSize, double angle, double staggerRatio)
+                          double opacity, int fontSize, double angle, double staggerRatio,
+                          boolean enableMosaic, int mosaicSize)
             throws IOException, GeneralSecurityException {
         byte[] raw = Files.readAllBytes(source);
         String sourceHash = Digests.sha256Hex(raw);
@@ -54,6 +56,12 @@ public final class ProtectionService {
         BufferedImage image = readImage(source);
         BufferedImage visible = VisibleWatermark.apply(image, issuer, purpose,
                 "", opacity, fontSize, angle, staggerRatio);
+        
+        // Apply mosaic if enabled
+        if (enableMosaic) {
+            visible = ImageOps.applyMosaic(visible, 0, 0, visible.getWidth(), visible.getHeight(), mosaicSize);
+        }
+        
         BufferedImage embedded = DctWatermark.embed(visible,
                 ("SD3|" + documentId + "|" + token + "|" + sourceHash)
                         .getBytes(StandardCharsets.UTF_8));
