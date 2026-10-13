@@ -9,6 +9,8 @@ import com.yimark.image.PdfUtils;
 import com.yimark.image.VisibleWatermark;
 import com.yimark.manifest.Manifest;
 import com.yimark.watermark.DctWatermark;
+import com.yimark.image.ImageOps;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -16,7 +18,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 
 /** Orchestrates the full protection pipeline: visible watermark, invisible watermark, signing. */
@@ -42,7 +46,7 @@ public final class ProtectionService {
 
     public Result protect(Path source, Path output, String issuer, String purpose,
                           double opacity, int fontSize, double angle, double staggerRatio,
-                          boolean enableMosaic, int mosaicSize)
+                          boolean enableMosaic, int mosaicSize, List<Rectangle2D.Double> mosaicRegions)
             throws IOException, GeneralSecurityException {
         byte[] raw = Files.readAllBytes(source);
         String sourceHash = Digests.sha256Hex(raw);
@@ -53,21 +57,38 @@ public final class ProtectionService {
                 .getBytes(StandardCharsets.UTF_8);
         String token = Digests.toHex(Digests.hmacSha256(tokenInput, bindingSecret.key()));
 
-        BufferedImage image = readImage(source);
-        BufferedImage visible = VisibleWatermark.apply(image, issuer, purpose,
-                "", opacity, fontSize, angle, staggerRatio);
-        
-        // Apply mosaic if enabled
-        if (enableMosaic) {
-            visible = ImageOps.applyMosaic(visible, 0, 0, visible.getWidth(), visible.getHeight(), mosaicSize);
+        List<BufferedImage> images = readAllImages(source);
+        List<BufferedImage> processedImages = new ArrayList<>();
+
+        for (BufferedImage image : images) {
+            BufferedImage visible = VisibleWatermark.apply(image, issuer, purpose,
+                    "", opacity, fontSize, angle, staggerRatio);
+            
+            // Apply mosaic if enabled
+            if (enableMosaic && mosaicRegions != null && !mosaicRegions.isEmpty()) {
+                for (Rectangle2D.Double rect : mosaicRegions) {
+                    // Clamp to image bounds
+                    int x = Math.max(0, (int) Math.round(rect.x));
+                    int y = Math.max(0, (int) Math.round(rect.y));
+                    int w = Math.min((int) Math.round(rect.width), visible.getWidth() - x);
+                    int h = Math.min((int) Math.round(rect.height), visible.getHeight() - y);
+                    if (w > 0 && h > 0) {
+                        visible = ImageOps.applyMosaic(visible, x, y, w, h, mosaicSize);
+                    }
+                }
+            } else if (enableMosaic) {
+                // Fallback: full image mosaic
+                visible = ImageOps.applyMosaic(visible, 0, 0, visible.getWidth(), visible.getHeight(), mosaicSize);
+            }
+            
+            BufferedImage embedded = DctWatermark.embed(visible,
+                    ("SD3|" + documentId + "|" + token + "|" + sourceHash)
+                            .getBytes(StandardCharsets.UTF_8));
+            GeometryMarkers.draw(embedded);
+            processedImages.add(embedded);
         }
-        
-        BufferedImage embedded = DctWatermark.embed(visible,
-                ("SD3|" + documentId + "|" + token + "|" + sourceHash)
-                        .getBytes(StandardCharsets.UTF_8));
-        GeometryMarkers.draw(embedded);
-        
-        writeImage(embedded, output);
+
+        writeImages(processedImages, output);
 
         String protectedHash = Digests.sha256Hex(Files.readAllBytes(output));
         byte[] signature = keys.sign((documentId + "|" + protectedHash + "|" + token)
@@ -86,20 +107,21 @@ public final class ProtectionService {
         return new Result(output, manifestPath, manifest, session);
     }
 
-    private static BufferedImage readImage(Path path) throws IOException {
+    private static List<BufferedImage> readAllImages(Path path) throws IOException {
         String name = path.getFileName().toString().toLowerCase();
         if (name.endsWith(".pdf")) {
-            return PdfUtils.readFirstPage(path);
+            return PdfUtils.readAllPages(path);
         }
-        return javax.imageio.ImageIO.read(path.toFile());
+        return List.of(javax.imageio.ImageIO.read(path.toFile()));
     }
 
-    private static void writeImage(BufferedImage image, Path output) throws IOException {
+    private static void writeImages(List<BufferedImage> images, Path output) throws IOException {
         String name = output.getFileName().toString().toLowerCase();
         if (name.endsWith(".pdf")) {
-            PdfUtils.writePdf(image, output);
+            PdfUtils.writePdf(images, output);
         } else {
-            javax.imageio.ImageIO.write(image, "PNG", output.toFile());
+            // For non-PDF output, only write the first image as PNG
+            javax.imageio.ImageIO.write(images.get(0), "PNG", output.toFile());
         }
     }
 

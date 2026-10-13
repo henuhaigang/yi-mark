@@ -12,13 +12,27 @@ import org.apache.pdfbox.rendering.PDFRenderer;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Utility for reading/writing PDF files via PDFBox. */
 public final class PdfUtils {
 
     private PdfUtils() {}
 
-    /** Renders the first page of a PDF to a BufferedImage at 300 DPI. */
+    /** Renders all pages of a PDF to a list of BufferedImages at 300 DPI. */
+    public static List<BufferedImage> readAllPages(Path pdfPath) throws IOException {
+        List<BufferedImage> images = new ArrayList<>();
+        try (PDDocument document = Loader.loadPDF(pdfPath.toFile())) {
+            PDFRenderer renderer = new PDFRenderer(document);
+            for (int i = 0; i < document.getNumberOfPages(); i++) {
+                images.add(renderer.renderImageWithDPI(i, 300));
+            }
+        }
+        return images;
+    }
+
+    /** Renders the first page of a PDF to a BufferedImage at 300 DPI (backward compatibility). */
     public static BufferedImage readFirstPage(Path pdfPath) throws IOException {
         try (PDDocument document = Loader.loadPDF(pdfPath.toFile())) {
             PDFRenderer renderer = new PDFRenderer(document);
@@ -26,19 +40,26 @@ public final class PdfUtils {
         }
     }
 
-    /** Writes a BufferedImage as a single-page PDF. */
-    public static void writePdf(BufferedImage image, Path outputPath) throws IOException {
+    /** Writes a list of BufferedImages as a multi-page PDF. */
+    public static void writePdf(List<BufferedImage> images, Path outputPath) throws IOException {
         try (PDDocument document = new PDDocument()) {
-            int width = image.getWidth();
-            int height = image.getHeight();
-            PDPage page = new PDPage(new PDRectangle(width, height));
-            document.addPage(page);
-            PDPageContentStream contentStream =
-                    new PDPageContentStream(document, page);
-            PDImageXObject pdImage = LosslessFactory.createFromImage(document, image);
-            contentStream.drawImage(pdImage, 0, 0, width, height);
-            contentStream.close();
+            for (BufferedImage image : images) {
+                int width = image.getWidth();
+                int height = image.getHeight();
+                PDPage page = new PDPage(new PDRectangle(width, height));
+                document.addPage(page);
+                PDPageContentStream contentStream =
+                        new PDPageContentStream(document, page);
+                PDImageXObject pdImage = LosslessFactory.createFromImage(document, image);
+                contentStream.drawImage(pdImage, 0, 0, width, height);
+                contentStream.close();
+            }
             document.save(outputPath.toFile());
         }
+    }
+
+    /** Writes a single BufferedImage as a single-page PDF (backward compatibility). */
+    public static void writePdf(BufferedImage image, Path outputPath) throws IOException {
+        writePdf(List.of(image), outputPath);
     }
 }
