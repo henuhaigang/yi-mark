@@ -400,6 +400,14 @@ public class Main extends Application {
         return javax.imageio.ImageIO.read(file);
     }
 
+    private BufferedImage readImageForExport(Path path) throws IOException {
+        String name = path.getFileName().toString().toLowerCase();
+        if (name.endsWith(".pdf")) {
+            return PdfUtils.readFirstPage(path);
+        }
+        return javax.imageio.ImageIO.read(path.toFile());
+    }
+
     private void chooseOutput(Stage stage) {
         FileChooser chooser = new FileChooser();
         chooser.setInitialFileName("secured-document.png");
@@ -443,7 +451,7 @@ public class Main extends Application {
                     enableMosaic, (int) mosaicBlockSize.getValue(), sourceMosaicRegions);
             
             // 直接展示生成的成品图（已含水印），不再重新加水印
-            BufferedImage finalImage = javax.imageio.ImageIO.read(result.image().toFile());
+            BufferedImage finalImage = readImageForExport(result.image());
             if (finalImage != null) {
                 preview.setImage(toFxImage(fitWidth(finalImage, PREVIEW_MAX_WIDTH)));
                 updateMosaicCanvasSize();
