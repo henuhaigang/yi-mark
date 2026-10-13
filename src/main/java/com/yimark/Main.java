@@ -212,7 +212,22 @@ public class Main extends Application {
         preview.setSmooth(true);
         mosaicCanvas.setMouseTransparent(false);
         
-        ScrollPane previewPane = new ScrollPane(previewStack);
+        // Log area at bottom of preview
+        log.setEditable(false);
+        log.setPrefHeight(100);
+        log.setWrapText(true);
+        log.getStyleClass().add("log-content");
+        ScrollPane logPane = new ScrollPane(log);
+        logPane.setFitToWidth(true);
+        logPane.setPrefHeight(100);
+        logPane.setMaxHeight(120);
+        logPane.getStyleClass().add("log-pane");
+        
+        // Preview with log at bottom
+        VBox previewWithLog = new VBox(previewStack, logPane);
+        VBox.setVgrow(previewStack, Priority.ALWAYS);
+        
+        ScrollPane previewPane = new ScrollPane(previewWithLog);
         previewPane.setPannable(true);
         previewPane.setFitToWidth(true);
         previewPane.setFitToHeight(true);
@@ -229,25 +244,12 @@ public class Main extends Application {
             }
         });
 
-        // Bottom - log
-        log.setEditable(false);
-        log.setPrefHeight(100);
-        log.setWrapText(true);
-        log.getStyleClass().add("log-content");
-        ScrollPane logPane = new ScrollPane(log);
-        logPane.setFitToWidth(true);
-        logPane.setPrefHeight(100);
-        logPane.setMaxHeight(120);
-        logPane.getStyleClass().add("log-pane");
-
         // Main layout
         BorderPane root = new BorderPane();
         root.setLeft(sidebar);
         root.setCenter(previewPane);
-        root.setBottom(logPane);
         BorderPane.setMargin(sidebar, new Insets(12));
-        BorderPane.setMargin(previewPane, new Insets(12, 12, 0, 12));
-        BorderPane.setMargin(logPane, new Insets(0, 12, 12, 12));
+        BorderPane.setMargin(previewPane, new Insets(12, 12, 12, 12));
         root.getStyleClass().add("main-container");
 
         issuer.textProperty().addListener((o, a, b) -> updatePreview());
