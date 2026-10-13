@@ -19,4 +19,5 @@ module yi.mark {
     opens com.yimark.util to javafx.graphics;
 
     exports com.yimark;
+exports com.yimark.protect;
 }
