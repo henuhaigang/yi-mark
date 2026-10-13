@@ -12,9 +12,9 @@
 ```
 com.yimark
 ├── crypto/           # Ed25519 keys, HMAC binding secret, SHA-256/HMAC digests
-├── image/            # VisibleWatermark (staggered tiles), GeometryMarkers, ImageOps
+├── image/            # VisibleWatermark (staggered tiles), GeometryMarkers, ImageOps (mosaic brush)
 ├── manifest/         # Signed manifest (V3, JSON, includes Ed25519 sig + HMAC token)
-├── protect/          # ProtectionService (orchestrates visible + invisible + signing)
+├── protect/          # ProtectionService (orchestrates visible + invisible + mosaic + signing)
 ├── trust/            # TrustStore (pinned issuer keys, ~/.yimark/trusted-issuers.json)
 ├── util/             # Minimal JSON parser (no external deps)
 ├── verify/           # VerificationService (SHA-256 + Ed25519 + trust anchor + watermark extraction)
@@ -31,6 +31,7 @@ com.yimark
 - **Sync**: 16-byte CRC32-derived preamble + 4-byte length, spread via block-hash mapping (survives crop/rotate)
 - **ECC**: RS(255,223) interleaved, corrects up to 16 byte errors per codeword
 - **Visible watermark**: Staggered tile grid (odd rows offset by half column step), FontMetrics-based spacing, no overlap
+- **Mosaic brush**: Manual brush tool with adjustable block size (2-50px), undo/redo history (50 steps), clear-all with undo support, real-time canvas overlay preview
 - **Trust model**: Manifest carries its own public key, but verification ONLY trusts keys pinned in `~/.yimark/trusted-issuers.json`
 - **No external JSON lib**: Custom flat-object parser in `Json.java`
 
@@ -65,6 +66,7 @@ mvn test   # 28 tests (DctWatermark 9, ReedSolomon 6, TrustStore 7, Verification
 - Reed-Solomon: 6 tests covering encode/decode/interleave/edge cases
 - TrustStore: 7 tests for pinning, lookup, save/load, revoke
 - VerificationService: 6 tests covering valid/tampered/untrusted/forged scenarios
+- Mosaic brush: undo/redo/clear all functionality tested
 
 ## Known Issues / TODO
 1. Byte-level SHA-256 verification flags any re-save/re-compress as "suspicious" even if watermark survives
@@ -72,6 +74,7 @@ mvn test   # 28 tests (DctWatermark 9, ReedSolomon 6, TrustStore 7, Verification
 3. Watermark extraction result not cross-checked against manifest fields
 4. Private keys stored in filesystem, not Keychain / Credential Manager
 5. Windows code signing / macOS notarization not configured
+6. Mosaic brush preview flickering fixed (block size slider now only updates overlay)
 
 ## Security Model
 - **Threat model**: Tampering detection, source authentication, raising watermark removal cost

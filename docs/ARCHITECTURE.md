@@ -1,28 +1,55 @@
 # Architecture
 
-JavaFX UI
- -> Protection pipeline
- -> SHA-256 / HMAC / Ed25519
- -> visible dynamic watermark
- -> 8x8 DCT watermark
- -> geometry markers
- -> PNG + signed `.securedoc.json`
+```
+com.yimark
+├── crypto/           # Ed25519 keys, HMAC binding secret, SHA-256/HMAC digests
+├── image/            # VisibleWatermark (staggered tiles), GeometryMarkers, ImageOps (mosaic brush)
+├── manifest/         # Signed manifest (V3, JSON, includes Ed25519 sig + HMAC token)
+├── protect/          # ProtectionService (orchestrates visible + invisible + mosaic + signing)
+├── trust/            # TrustStore (pinned issuer keys, ~/.yimark/trusted-issuers.json)
+├── util/             # Minimal JSON parser (no external deps)
+├── verify/           # VerificationService (SHA-256 + Ed25519 + trust anchor + watermark extraction)
+└── watermark/
+    ├── DctWatermark.java   # Invisible: embed/extract, sync search, RS(255,223)
+    ├── DctTransform.java   # 8x8 DCT basis (coeff pair 2,3 / 3,2)
+    ├── ReedSolomon.java    # RS(255,223) interleaved encode/decode
+    ├── Frame.java          # Sync preamble + length + CRC32 framing
+    └── Extraction.java     # Extraction result DTO
+```
 
-## Why not claim impossible protection?
+## Protection Pipeline
 
-macOS does not expose a universal reliable screenshot event to ordinary desktop applications.
-Another phone can always photograph a screen. AI can also regenerate a visually equivalent image.
+1. **Read Source** — PNG/JPG/PDF (PDF: first page only)
+2. **Visible Watermark** — Staggered tiles with configurable stagger/opacity/size/angle
+3. **Mosaic Brush** — User-drawn regions, configurable block size (2-50px), undo/redo (50 steps)
+4. **Invisible Watermark** — 8×8 DCT, coeff pair (2,3)/(3,2), strength 18, RS(255,223) ECC
+5. **Geometry Markers** — 4-corner markers for sync recovery
+6. **Sign Manifest** — Ed25519 over `documentId|protectedSha256|watermarkToken`
+7. **Output** — PNG/PDF + `.yimark.json` manifest
 
-Therefore SecureDoc uses defense in depth rather than a false promise:
-- visible dynamic watermark
-- cryptographic identity
-- robust frequency-domain watermark
-- geometry synchronization
-- tamper analysis
-- signed verification manifest
+## Security Model
 
-## Production hardening
+- **Threat model**: Tampering detection, source authentication, raising watermark removal cost
+- **Not DRM**: Cannot prevent photos, screenshots, AI redraws
+- **Trust anchor**: User must manually pin issuer keys; first use requires "Trust Current Issuer" click
+- **Signature scope**: `documentId|protectedSha256|watermarkToken` only; `sourceSha256` only bound via HMAC token
+- **Mosaic**: User-drawn regions only; coordinates mapped from preview to source image
 
-Add Reed-Solomon/BCH, coefficient voting, affine/perspective recovery, DWT,
-JPEG/screenshot/crop/rotate attack corpus, local tamper heatmap, PDF-native rendering,
-online revocation and a public verifier.
+## Known Limitations
+
+1. Byte-level SHA-256 verification flags any re-save/re-compress as "suspicious" even if watermark survives
+2. Rotation/scale search uses discrete candidate grid (misses off-grid angles)
+3. Watermark extraction result not cross-checked against manifest fields
+4. Private keys stored in filesystem, not Keychain / Credential Manager
+5. Windows code signing / macOS notarization not configured
+
+## Future Work
+
+- Verification: "byte mismatch but watermark recoverable" handling
+- Cross-check extracted `documentId`/`token` with manifest
+- Continuous rotation/scale estimation (phase correlation / keypoint templates)
+- Sparser sync templates / redundant layout for crop resistance
+- Migrate keys to macOS Keychain / Windows Credential Manager
+- DWT alternative to DCT reference implementation
+- CI: JPEG, screenshot, crop, rotate, scale attack corpus
+- Windows code signing / macOS notarization

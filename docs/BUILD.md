@@ -1,17 +1,29 @@
-# macOS build
+# Build & Run
 
+## Development
 ```bash
-java -version
-mvn -version
 mvn clean javafx:run
 ```
 
-Create `.app`:
+## Native Packaging
 
+### macOS (generates .app + .dmg)
 ```bash
-mvn clean package
-jpackage --name SecureDoc --input target --main-jar securedoc-java-1.0.0.jar --main-class com.securedoc.Main --type app-image
+./build-app.sh mac
 ```
 
-The current signing key is stored under `~/.securedoc` as a development fallback.
-Before production, replace this with the macOS Keychain adapter (`security` CLI or JNI/JNA).
+### Windows (generates .exe + .msi) - run on Windows
+```bash
+./build-app.sh win
+```
+
+The build script automatically:
+- Downloads JavaFX native libraries
+- Creates modular runtime image with jlink
+- Generates native installer via jpackage
+
+## Version Management
+Version is read from `pom.xml`. Override with `VERSION` env var:
+```bash
+VERSION=2.0.0 ./build-app.sh mac
+```
