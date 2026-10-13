@@ -7,6 +7,7 @@ import com.yimark.protect.ProtectionService;
 import com.yimark.trust.TrustStore;
 import com.yimark.verify.VerificationService;
 import java.awt.RenderingHints;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -14,12 +15,17 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import javafx.application.Application;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
@@ -29,10 +35,12 @@ import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -60,6 +68,11 @@ public class Main extends Application {
     private final Slider mosaicBlockSize = new Slider(2, 50, 10);
     private final javafx.scene.control.Label mosaicBlockSizeLabel = new javafx.scene.control.Label("马赛克块大小: 10");
     private final ImageView preview = new ImageView();
+    private Canvas mosaicCanvas;
+    private GraphicsContext mosaicGC;
+    private final List<Rectangle2D.Double> mosaicRegions = new ArrayList<>();
+    private boolean isDrawingMosaic = false;
+    private double lastX, lastY;
 
     private BufferedImage sourceImage;
 
@@ -172,20 +185,42 @@ public class Main extends Application {
         settingsBox.setAlignment(Pos.TOP_LEFT);
         settingsBox.getStyleClass().add("sidebar-section");
 
-        VBox sidebar = new VBox(actionBox, new Separator(), settingsBox);
+        VBox sidebarContent = new VBox(actionBox, new Separator(), settingsBox);
+        sidebarContent.setSpacing(0);
+        
+        ScrollPane sidebarScrollPane = new ScrollPane(sidebarContent);
+        sidebarScrollPane.setFitToWidth(true);
+        sidebarScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        sidebarScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        sidebarScrollPane.getStyleClass().add("sidebar-scroll");
+        
+        VBox sidebar = new VBox(sidebarScrollPane);
         sidebar.setPrefWidth(280);
         sidebar.setMaxWidth(280);
         sidebar.getStyleClass().add("sidebar");
 
-        // Center - preview
+        // Center - preview with mosaic canvas overlay
         preview.setPreserveRatio(true);
         preview.setSmooth(true);
-        ScrollPane previewPane = new ScrollPane(preview);
+        
+        mosaicCanvas = new Canvas();
+        mosaicGC = mosaicCanvas.getGraphicsContext2D();
+        
+        javafx.scene.layout.StackPane previewStack = new javafx.scene.layout.StackPane();
+        previewStack.getChildren().addAll(preview, mosaicCanvas);
+        preview.setPreserveRatio(true);
+        preview.setSmooth(true);
+        mosaicCanvas.setMouseTransparent(false);
+        
+        ScrollPane previewPane = new ScrollPane(previewStack);
         previewPane.setPannable(true);
         previewPane.setFitToWidth(true);
         previewPane.setFitToHeight(true);
         previewPane.getStyleClass().add("preview-pane");
         preview.getStyleClass().add("preview-image");
+
+        // Mosaic drawing mouse handlers
+        setupMosaicMouseHandlers();
 
         // Make preview responsive to viewport size
         previewPane.viewportBoundsProperty().addListener((obs, oldVal, newVal) -> {
@@ -196,13 +231,13 @@ public class Main extends Application {
 
         // Bottom - log
         log.setEditable(false);
-        log.setPrefHeight(180);
+        log.setPrefHeight(100);
         log.setWrapText(true);
         log.getStyleClass().add("log-content");
         ScrollPane logPane = new ScrollPane(log);
         logPane.setFitToWidth(true);
-        logPane.setPrefHeight(180);
-        logPane.setMaxHeight(180);
+        logPane.setPrefHeight(100);
+        logPane.setMaxHeight(120);
         logPane.getStyleClass().add("log-pane");
 
         // Main layout
@@ -277,6 +312,15 @@ public class Main extends Application {
         preview.setImage(toFxImage(watermarked));
         preview.setFitWidth(scaledW);
         preview.setFitHeight(scaledH);
+        updateMosaicCanvasSize();
+    }
+
+    private void updateMosaicCanvasSize() {
+        if (mosaicCanvas != null && preview.getImage() != null) {
+            mosaicCanvas.setWidth(preview.getImage().getWidth());
+            mosaicCanvas.setHeight(preview.getImage().getHeight());
+            drawMosaicPreview();
+        }
     }
 
     private int fontSizeFor(int imageWidth) {
@@ -345,16 +389,34 @@ public class Main extends Application {
         }
         try {
             int fontSize = fontSizeFor(sourceImage == null ? 800 : sourceImage.getWidth());
-            boolean enableMosaic = mosaicEnabled.isSelected();
+            boolean enableMosaic = mosaicEnabled.isSelected() && !mosaicRegions.isEmpty();
             int mosaicSize = (int) mosaicBlockSize.getValue();
+            
+            // Convert mosaic regions from preview coordinates to source image coordinates
+            List<Rectangle2D.Double> sourceMosaicRegions = new ArrayList<>();
+            if (enableMosaic && !mosaicRegions.isEmpty() && sourceImage != null) {
+                double scaleX = (double) sourceImage.getWidth() / preview.getImage().getWidth();
+                double scaleY = (double) sourceImage.getHeight() / preview.getImage().getHeight();
+                for (Rectangle2D.Double rect : mosaicRegions) {
+                    sourceMosaicRegions.add(new Rectangle2D.Double(
+                        rect.x * scaleX,
+                        rect.y * scaleY,
+                        rect.width * scaleX,
+                        rect.height * scaleY
+                    ));
+                }
+            }
+            
             ProtectionService.Result result = protection.protect(
                     source, output, issuer.getText(), purpose.getText(), opacity.getValue(),
                     fontSize, watermarkAngle.getValue(), staggerRatio.getValue(),
-                    enableMosaic, mosaicSize);
+                    enableMosaic, (int) mosaicBlockSize.getValue(), sourceMosaicRegions);
+            
             // 直接展示生成的成品图（已含水印），不再重新加水印
             BufferedImage finalImage = javax.imageio.ImageIO.read(result.image().toFile());
             if (finalImage != null) {
                 preview.setImage(toFxImage(fitWidth(finalImage, PREVIEW_MAX_WIDTH)));
+                updateMosaicCanvasSize();
             }
             log.setText("保护成功\n"
                     + "PNG: " + result.image() + "\n"
@@ -407,6 +469,87 @@ public class Main extends Application {
                     + "共 " + trustStore.size() + " 个受信任签发方");
         } catch (Exception e) {
             log.setText("信任失败: " + e);
+        }
+    }
+
+    private void setupMosaicMouseHandlers() {
+        mosaicCanvas.setOnMousePressed(e -> {
+            if (!mosaicEnabled.isSelected()) return;
+            isDrawingMosaic = true;
+            lastX = e.getX();
+            lastY = e.getY();
+            // Start a new mosaic stroke
+            double x = Math.max(0, Math.min(e.getX(), mosaicCanvas.getWidth()));
+            double y = Math.max(0, Math.min(e.getY(), mosaicCanvas.getHeight()));
+            int blockSize = (int) mosaicBlockSize.getValue();
+            // Add initial point as a small rectangle
+            int size = (int) mosaicBlockSize.getValue();
+            mosaicRegions.add(new Rectangle2D.Double(x - size/2, y - size/2, size, size));
+            drawMosaicPreview();
+        });
+
+        mosaicCanvas.setOnMouseDragged(e -> {
+            if (!isDrawingMosaic || !mosaicEnabled.isSelected()) return;
+            double x = Math.max(0, Math.min(e.getX(), mosaicCanvas.getWidth()));
+            double y = Math.max(0, Math.min(e.getY(), mosaicCanvas.getHeight()));
+            
+            // Calculate distance from last point
+            double dx = x - lastX;
+            double dy = y - lastY;
+            double distance = Math.sqrt(dx * dx + dy * dy);
+            int blockSize = (int) mosaicBlockSize.getValue();
+            
+            // Add mosaic blocks along the path
+            int steps = Math.max(1, (int) (distance / (blockSize / 2.0)));
+            for (int i = 0; i <= steps; i++) {
+                double t = (double) i / steps;
+                double ix = lastX + dx * t;
+                double iy = lastY + dy * t;
+                int size = (int) mosaicBlockSize.getValue();
+                mosaicRegions.add(new Rectangle2D.Double(ix - size/2, iy - size/2, size, size));
+            }
+            
+            lastX = e.getX();
+            lastY = e.getY();
+            drawMosaicPreview();
+        });
+
+        mosaicCanvas.setOnMouseReleased(e -> {
+            isDrawingMosaic = false;
+        });
+
+        mosaicCanvas.setOnMouseExited(e -> {
+            isDrawingMosaic = false;
+        });
+    }
+
+    private void drawMosaicPreview() {
+        if (mosaicGC == null) return;
+        
+        // Clear canvas
+        mosaicGC.clearRect(0, 0, mosaicCanvas.getWidth(), mosaicCanvas.getHeight());
+        
+        if (mosaicRegions.isEmpty()) return;
+        
+        // Draw mosaic blocks on canvas
+        mosaicGC.setFill(Color.BLACK);
+        for (Rectangle2D.Double rect : mosaicRegions) {
+            mosaicGC.fillRect(rect.x, rect.y, rect.width, rect.height);
+        }
+    }
+
+    private void clearMosaic() {
+        mosaicRegions.clear();
+        if (mosaicGC != null) {
+            mosaicGC.clearRect(0, 0, mosaicCanvas.getWidth(), mosaicCanvas.getHeight());
+        }
+    }
+
+    private void updateMosaicCanvasSize() {
+        if (mosaicCanvas != null && preview.getImage() != null) {
+            mosaicCanvas.setWidth(preview.getImage().getWidth());
+            mosaicCanvas.setHeight(preview.getImage().getHeight());
+            drawMosaicPreview();
         }
     }
 
