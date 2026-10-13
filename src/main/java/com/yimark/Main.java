@@ -304,11 +304,13 @@ public class Main extends Application {
         BufferedImage watermarked = VisibleWatermark.apply(scaled, issuer.getText(),
                 purpose.getText(), "", opacity.getValue(), fontSize, watermarkAngle.getValue(), staggerRatio.getValue());
 
-        // Apply mosaic if enabled
-        if (mosaicEnabled.isSelected()) {
+        // Apply mosaic if enabled and there are drawn regions
+        if (mosaicEnabled.isSelected() && !mosaicRegions.isEmpty()) {
             int mosaicSize = (int) mosaicBlockSize.getValue();
-            // Apply full-image mosaic for preview
-            watermarked = com.yimark.image.ImageOps.applyMosaic(watermarked, 0, 0, watermarked.getWidth(), watermarked.getHeight(), mosaicSize);
+            // Apply mosaic only to drawn regions for preview
+            for (Rectangle2D.Double rect : mosaicRegions) {
+                watermarked = com.yimark.image.ImageOps.applyMosaic(watermarked, (int) rect.x, (int) rect.y, (int) rect.width, (int) rect.height, mosaicSize);
+            }
         }
 
         preview.setImage(toFxImage(watermarked));
