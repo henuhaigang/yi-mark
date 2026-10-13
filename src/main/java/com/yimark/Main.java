@@ -280,7 +280,10 @@ public class Main extends Application {
         watermarkAngle.valueProperty().addListener((o, a, b) -> updatePreview());
         staggerRatio.valueProperty().addListener((o, a, b) -> updatePreview());
         mosaicEnabled.selectedProperty().addListener((o, a, b) -> updatePreview());
-        mosaicBlockSize.valueProperty().addListener((o, a, b) -> updatePreview());
+        // Mosaic block size only affects mosaic overlay, not full preview
+        mosaicBlockSize.valueProperty().addListener((o, a, b) -> {
+            updateMosaicPreview();
+        });
 
         stage.setTitle("Yi Mark - 证件水印保护工具");
         Scene scene = new Scene(root, 1200, 900);
@@ -572,6 +575,12 @@ public class Main extends Application {
         for (Rectangle2D.Double rect : mosaicRegions) {
             mosaicGC.fillRect(rect.x, rect.y, rect.width, rect.height);
         }
+    }
+
+    private void updateMosaicPreview() {
+        // Only redraw mosaic canvas overlay, don't re-render full preview
+        if (!mosaicEnabled.isSelected() || mosaicRegions.isEmpty()) return;
+        drawMosaicPreview();
     }
 
     private void clearMosaic() {
