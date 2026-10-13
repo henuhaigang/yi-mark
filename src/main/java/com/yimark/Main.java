@@ -35,6 +35,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -67,10 +69,13 @@ public class Main extends Application {
     private final javafx.scene.control.CheckBox mosaicEnabled = new javafx.scene.control.CheckBox("启用马赛克");
     private final Slider mosaicBlockSize = new Slider(2, 50, 10);
     private final javafx.scene.control.Label mosaicBlockSizeLabel = new javafx.scene.control.Label("马赛克块大小: 10");
+    private final Button undoButton = new Button("撤销");
+    private final Button clearButton = new Button("清除所有");
     private final ImageView preview = new ImageView();
     private Canvas mosaicCanvas;
     private GraphicsContext mosaicGC;
     private final List<Rectangle2D.Double> mosaicRegions = new ArrayList<>();
+    private final List<List<Rectangle2D.Double>> mosaicHistory = new ArrayList<>();
     private boolean isDrawingMosaic = false;
     private double lastX, lastY;
 
@@ -162,6 +167,9 @@ public class Main extends Application {
         mosaicEnabled.selectedProperty().addListener((obs, oldVal, newVal) -> {
             mosaicBlockSize.setDisable(!newVal);
             mosaicBlockSizeLabel.setDisable(!newVal);
+            if (!newVal) {
+                clearMosaic();
+            }
             updatePreview();
         });
 
@@ -169,6 +177,18 @@ public class Main extends Application {
         settingsDivider.getStyleClass().add("separator");
         Separator mosaicDivider = new Separator();
         mosaicDivider.getStyleClass().add("separator");
+
+        undoButton.getStyleClass().add("sidebar-button");
+        undoButton.setOnAction(e -> undoMosaic());
+        undoButton.setDisable(true);
+
+        clearButton.getStyleClass().add("sidebar-button");
+        clearButton.getStyleClass().add("button-danger");
+        clearButton.setOnAction(e -> clearMosaic());
+        clearButton.setDisable(true);
+
+        HBox mosaicButtonBox = new HBox(8, undoButton, clearButton);
+        mosaicButtonBox.setAlignment(Pos.CENTER_LEFT);
 
         VBox settingsBox = new VBox(8,
                 issuerLabel, issuer,
@@ -180,7 +200,8 @@ public class Main extends Application {
                 staggerLabel, staggerRatio,
                 mosaicDivider,
                 mosaicLabel, mosaicEnabled,
-                mosaicBlockSizeLabel, mosaicBlockSize);
+                mosaicBlockSizeLabel, mosaicBlockSize,
+                mosaicButtonBox);
         settingsBox.setPadding(new Insets(12));
         settingsBox.setAlignment(Pos.TOP_LEFT);
         settingsBox.getStyleClass().add("sidebar-section");
@@ -264,6 +285,15 @@ public class Main extends Application {
         stage.setTitle("Yi Mark - 证件水印保护工具");
         Scene scene = new Scene(root, 1200, 900);
         scene.getStylesheets().add(getClass().getResource("/app.css").toExternalForm());
+        
+        // Add keyboard shortcut for undo (Ctrl+Z)
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+            if (e.isControlDown() && e.getCode() == KeyCode.Z) {
+                undoMosaic();
+                e.consume();
+            }
+        });
+        
         stage.setScene(scene);
         stage.setMinWidth(900);
         stage.setMinHeight(700);
@@ -479,6 +509,7 @@ public class Main extends Application {
     private void setupMosaicMouseHandlers() {
         mosaicCanvas.setOnMousePressed(e -> {
             if (!mosaicEnabled.isSelected()) return;
+            saveMosaicState();
             isDrawingMosaic = true;
             lastX = e.getX();
             lastY = e.getY();
@@ -490,6 +521,7 @@ public class Main extends Application {
             int size = (int) mosaicBlockSize.getValue();
             mosaicRegions.add(new Rectangle2D.Double(x - size/2, y - size/2, size, size));
             drawMosaicPreview();
+            updateUndoButton();
         });
 
         mosaicCanvas.setOnMouseDragged(e -> {
@@ -543,9 +575,45 @@ public class Main extends Application {
     }
 
     private void clearMosaic() {
+        if (!mosaicRegions.isEmpty()) {
+            saveMosaicState();
+        }
         mosaicRegions.clear();
         if (mosaicGC != null) {
             mosaicGC.clearRect(0, 0, mosaicCanvas.getWidth(), mosaicCanvas.getHeight());
+        }
+        updateUndoButton();
+    }
+
+    private void saveMosaicState() {
+        // Deep copy the current regions to history
+        List<Rectangle2D.Double> copy = new ArrayList<>();
+        for (Rectangle2D.Double rect : mosaicRegions) {
+            copy.add(new Rectangle2D.Double(rect.x, rect.y, rect.width, rect.height));
+        }
+        mosaicHistory.add(copy);
+        // Limit history size to prevent memory issues
+        if (mosaicHistory.size() > 50) {
+            mosaicHistory.remove(0);
+        }
+    }
+
+    private void undoMosaic() {
+        if (!mosaicHistory.isEmpty()) {
+            List<Rectangle2D.Double> previousState = mosaicHistory.remove(mosaicHistory.size() - 1);
+            mosaicRegions.clear();
+            mosaicRegions.addAll(previousState);
+            drawMosaicPreview();
+            updateUndoButton();
+        }
+    }
+
+    private void updateUndoButton() {
+        if (undoButton != null) {
+            undoButton.setDisable(mosaicHistory.isEmpty());
+        }
+        if (clearButton != null) {
+            clearButton.setDisable(mosaicRegions.isEmpty());
         }
     }
 

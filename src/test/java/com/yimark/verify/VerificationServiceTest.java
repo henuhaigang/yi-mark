@@ -10,6 +10,8 @@ import java.awt.image.BufferedImage;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import javax.imageio.ImageIO;
 import org.junit.jupiter.api.DisplayName;
@@ -43,7 +45,7 @@ class VerificationServiceTest {
         int fontSize = com.yimark.image.VisibleWatermark.baseFontSize(1200);
         return new ProtectionService(home).protect(source, output, "Acme Bank", "KYC", 0.18,
                 fontSize, -24.0, com.yimark.image.VisibleWatermark.DEFAULT_STAGGER_RATIO,
-                false, 10);
+                false, 10, new ArrayList<>());
     }
 
     @Test
