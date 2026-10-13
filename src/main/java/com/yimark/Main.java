@@ -352,14 +352,6 @@ public class Main extends Application {
         updateMosaicCanvasSize();
     }
 
-    private void updateMosaicCanvasSize() {
-        if (mosaicCanvas != null && preview.getImage() != null) {
-            mosaicCanvas.setWidth(preview.getImage().getWidth());
-            mosaicCanvas.setHeight(preview.getImage().getHeight());
-            drawMosaicPreview();
-        }
-    }
-
     private int fontSizeFor(int imageWidth) {
         return (int) Math.max(1, Math.round(
                 VisibleWatermark.baseFontSize(imageWidth) * watermarkSize.getValue()));

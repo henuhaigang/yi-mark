@@ -112,6 +112,4 @@ public final class ImageOps {
         }
         return source;
     }
-
-    private ImageOps() {}
 }
