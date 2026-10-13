@@ -368,8 +368,9 @@ public class Main extends Application {
     private void chooseInput(Stage stage) {
         FileChooser chooser = new FileChooser();
         chooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg"),
-                new FileChooser.ExtensionFilter("PDF", "*.pdf"));
+                new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg", "*.PNG", "*.JPG", "*.JPEG"),
+                new FileChooser.ExtensionFilter("PDF", "*.pdf", "*.PDF"),
+                new FileChooser.ExtensionFilter("All Files", "*.*"));
         java.io.File file = chooser.showOpenDialog(stage);
         if (file != null) {
             source = file.toPath();
@@ -411,8 +412,8 @@ public class Main extends Application {
         FileChooser chooser = new FileChooser();
         chooser.setInitialFileName("secured-document.png");
         chooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("PNG", "*.png"),
-                new FileChooser.ExtensionFilter("PDF", "*.pdf"));
+                new FileChooser.ExtensionFilter("PNG", "*.png", "*.PNG"),
+                new FileChooser.ExtensionFilter("PDF", "*.pdf", "*.PDF"));
         java.io.File file = chooser.showSaveDialog(stage);
         if (file != null) {
             output = file.toPath();
