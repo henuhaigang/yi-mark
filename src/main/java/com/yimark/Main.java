@@ -60,7 +60,7 @@ public class Main extends Application {
     private final TextArea log = new TextArea();
     private final TextField issuer = new TextField("SecureDoc");
     private final TextField purpose = new TextField("仅供指定用途使用");
-    private final Slider opacity = new Slider(0.08, 0.45, 0.20);
+    private final Slider opacity = new Slider(0.08, 0.60, 0.30);
     private final Slider watermarkSize = new Slider(0.01, 3.0, 1.0);
     private final Slider watermarkAngle = new Slider(-60, 60, -24);
     private final Slider staggerRatio = new Slider(-1.0, 1.0, VisibleWatermark.DEFAULT_STAGGER_RATIO);
