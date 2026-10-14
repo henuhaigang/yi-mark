@@ -118,7 +118,7 @@ public class Main extends Application {
         }
 
         // Left sidebar - controls
-        Button in = new Button("选择原图");
+        Button in = new Button("选择文件");
         Button out = new Button("选择输出");
         Button protect = new Button("生成保护文件");
         Button verify = new Button("验证文件");
