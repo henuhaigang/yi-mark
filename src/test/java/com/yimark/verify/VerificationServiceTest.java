@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.yimark.protect.ProtectionService;
 import com.yimark.trust.TrustStore;
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -45,7 +46,7 @@ class VerificationServiceTest {
         int fontSize = com.yimark.image.VisibleWatermark.baseFontSize(1200);
         return new ProtectionService(home).protect(source, output, "Acme Bank", "KYC", 0.18,
                 fontSize, -24.0, com.yimark.image.VisibleWatermark.DEFAULT_STAGGER_RATIO,
-                false, 10, new ArrayList<>());
+                false, 10, new ArrayList<>(), Color.GRAY);
     }
 
     @Test

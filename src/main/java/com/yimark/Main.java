@@ -26,6 +26,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
@@ -71,6 +72,7 @@ public class Main extends Application {
     private final javafx.scene.control.Label mosaicBlockSizeLabel = new javafx.scene.control.Label("马赛克块大小: 10");
     private final Button undoButton = new Button("撤销");
     private final Button clearButton = new Button("清除所有");
+    private final ColorPicker watermarkColorPicker = new ColorPicker(toFXColor(VisibleWatermark.DEFAULT_WATERMARK_COLOR));
     private final ImageView preview = new ImageView();
     private Canvas mosaicCanvas;
     private GraphicsContext mosaicGC;
@@ -80,6 +82,30 @@ public class Main extends Application {
     private double lastX, lastY;
 
     private BufferedImage sourceImage;
+
+    /**
+     * Convert JavaFX Color to AWT Color.
+     */
+    private static java.awt.Color toAWTColor(javafx.scene.paint.Color fxColor) {
+        return new java.awt.Color(
+                (int) (fxColor.getRed() * 255),
+                (int) (fxColor.getGreen() * 255),
+                (int) (fxColor.getBlue() * 255),
+                (int) (fxColor.getOpacity() * 255)
+        );
+    }
+
+    /**
+     * Convert AWT Color to JavaFX Color.
+     */
+    private static javafx.scene.paint.Color toFXColor(java.awt.Color awtColor) {
+        return new javafx.scene.paint.Color(
+                awtColor.getRed() / 255.0,
+                awtColor.getGreen() / 255.0,
+                awtColor.getBlue() / 255.0,
+                awtColor.getAlpha() / 255.0
+        );
+    }
 
     @Override
     public void start(Stage stage) {
@@ -201,6 +227,7 @@ public class Main extends Application {
                 mosaicDivider,
                 mosaicLabel, mosaicEnabled,
                 mosaicBlockSizeLabel, mosaicBlockSize,
+                new Label("水印颜色"), watermarkColorPicker,
                 mosaicButtonBox);
         settingsBox.setPadding(new Insets(12));
         settingsBox.setAlignment(Pos.TOP_LEFT);
@@ -284,6 +311,8 @@ public class Main extends Application {
         mosaicBlockSize.valueProperty().addListener((o, a, b) -> {
             updateMosaicPreview();
         });
+        // Watercolor color picker
+        watermarkColorPicker.valueProperty().addListener((o, a, b) -> updatePreview());
 
         stage.setTitle("Yi Mark - 证件水印保护工具");
         Scene scene = new Scene(root, 1200, 900);
@@ -335,7 +364,7 @@ public class Main extends Application {
         BufferedImage scaled = fitWidth(sourceImage, scaledW);
         int fontSize = fontSizeFor(scaled.getWidth());
         BufferedImage watermarked = VisibleWatermark.apply(scaled, issuer.getText(),
-                purpose.getText(), "", opacity.getValue(), fontSize, watermarkAngle.getValue(), staggerRatio.getValue());
+                purpose.getText(), "", opacity.getValue(), fontSize, watermarkAngle.getValue(), staggerRatio.getValue(), toAWTColor(watermarkColorPicker.getValue()));
 
         // Apply mosaic if enabled and there are drawn regions
         if (mosaicEnabled.isSelected() && !mosaicRegions.isEmpty()) {
@@ -448,7 +477,8 @@ public class Main extends Application {
             ProtectionService.Result result = protection.protect(
                     source, output, issuer.getText(), purpose.getText(), opacity.getValue(),
                     fontSize, watermarkAngle.getValue(), staggerRatio.getValue(),
-                    enableMosaic, (int) mosaicBlockSize.getValue(), sourceMosaicRegions);
+                    enableMosaic, (int) mosaicBlockSize.getValue(), sourceMosaicRegions,
+                    toAWTColor(watermarkColorPicker.getValue()));
             
             // 直接展示生成的成品图（已含水印），不再重新加水印
             BufferedImage finalImage = readImageForExport(result.image());

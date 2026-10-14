@@ -19,17 +19,18 @@ public final class VisibleWatermark {
      *                     - 0.5 = half-step stagger (default, original behavior)
      *                     - 1.0 = full-step stagger
      *                     - negative = random stagger per row (each row gets independent random offset in [0, colStep))
+     * @param color        watermark color (default: gray for better visibility on both light/dark backgrounds)
      */
     public static BufferedImage apply(BufferedImage source, String issuer, String purpose,
                                       String identity, double opacity, int fontSize, double degrees,
-                                      double staggerRatio) {
+                                      double staggerRatio, Color color) {
         int width = source.getWidth();
         int height = source.getHeight();
         BufferedImage out = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = out.createGraphics();
         graphics.drawImage(source, 0, 0, null);
         graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) opacity));
-        graphics.setColor(Color.WHITE);
+        graphics.setColor(color);
         Font font = new Font("SansSerif", Font.BOLD, fontSize);
         graphics.setFont(font);
         graphics.rotate(Math.toRadians(degrees), width / 2.0, height / 2.0);
@@ -74,6 +75,9 @@ public final class VisibleWatermark {
         graphics.dispose();
         return out;
     }
+
+    /** Default watermark color: medium gray for good visibility on both light and dark backgrounds. */
+    public static final Color DEFAULT_WATERMARK_COLOR = new Color(128, 128, 128);
 
     /** Default stagger ratio (half-step stagger for backward compatibility). */
     public static final double DEFAULT_STAGGER_RATIO = 0.5;

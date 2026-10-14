@@ -10,6 +10,7 @@ import com.yimark.image.VisibleWatermark;
 import com.yimark.manifest.Manifest;
 import com.yimark.watermark.DctWatermark;
 import com.yimark.image.ImageOps;
+import java.awt.Color;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -46,7 +47,8 @@ public final class ProtectionService {
 
     public Result protect(Path source, Path output, String issuer, String purpose,
                           double opacity, int fontSize, double angle, double staggerRatio,
-                          boolean enableMosaic, int mosaicSize, List<Rectangle2D.Double> mosaicRegions)
+                          boolean enableMosaic, int mosaicSize, List<Rectangle2D.Double> mosaicRegions,
+                          Color watermarkColor)
             throws IOException, GeneralSecurityException {
         byte[] raw = Files.readAllBytes(source);
         String sourceHash = Digests.sha256Hex(raw);
@@ -62,7 +64,7 @@ public final class ProtectionService {
 
         for (BufferedImage image : images) {
             BufferedImage visible = VisibleWatermark.apply(image, issuer, purpose,
-                    "", opacity, fontSize, angle, staggerRatio);
+                    "", opacity, fontSize, angle, staggerRatio, watermarkColor);
             
             // Apply mosaic if enabled
             if (enableMosaic && mosaicRegions != null && !mosaicRegions.isEmpty()) {
