@@ -32,6 +32,7 @@ com.yimark
 - **ECC**: RS(255,223) interleaved, corrects up to 16 byte errors per codeword
 - **Visible watermark**: Staggered tile grid (odd rows offset by half column step), FontMetrics-based spacing, no overlap
 - **Mosaic brush**: Manual brush tool with adjustable block size (2-50px), undo/redo history (50 steps), clear-all with undo support, real-time canvas overlay preview
+- **Watermark color picker**: Custom color support via JavaFX ColorPicker, default gray (128,128,128) for visibility on both light/dark backgrounds
 - **Trust model**: Manifest carries its own public key, but verification ONLY trusts keys pinned in `~/.yimark/trusted-issuers.json`
 - **No external JSON lib**: Custom flat-object parser in `Json.java`
 

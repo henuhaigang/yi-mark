@@ -19,13 +19,14 @@ com.yimark
 
 ## Protection Pipeline
 
-1. **Read Source** — PNG/JPG/PDF (PDF: first page only)
+1. **Read Source** — PNG/JPG/PDF (PDF: all pages supported)
 2. **Visible Watermark** — Staggered tiles with configurable stagger/opacity/size/angle
+3. **Watermark Color** — Custom color via JavaFX ColorPicker, default gray (128,128,128)
 3. **Mosaic Brush** — User-drawn regions, configurable block size (2-50px), undo/redo (50 steps)
 4. **Invisible Watermark** — 8×8 DCT, coeff pair (2,3)/(3,2), strength 18, RS(255,223) ECC
-5. **Geometry Markers** — 4-corner markers for sync recovery
-6. **Sign Manifest** — Ed25519 over `documentId|protectedSha256|watermarkToken`
-7. **Output** — PNG/PDF + `.yimark.json` manifest
+4. **Geometry Markers** — 4-corner markers for sync recovery
+5. **Sign Manifest** — Ed25519 over `documentId|protectedSha256|watermarkToken`
+5. **Output** — PNG/PDF + `.yimark.json` manifest
 
 ## Security Model
 
