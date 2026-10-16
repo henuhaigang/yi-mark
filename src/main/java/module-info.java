@@ -3,6 +3,7 @@ module yi.mark {
     requires javafx.graphics;
     requires javafx.base;
     requires java.desktop;
+    requires jdk.crypto.ec;
     requires org.apache.pdfbox;
     requires org.apache.pdfbox.io;
     requires org.apache.fontbox;
@@ -19,5 +20,6 @@ module yi.mark {
     opens com.yimark.util to javafx.graphics;
 
     exports com.yimark;
-exports com.yimark.protect;
+    exports com.yimark.protect;
+    exports com.yimark.image;
 }

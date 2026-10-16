@@ -109,12 +109,16 @@ public class Main extends Application {
 
     @Override
     public void start(Stage stage) {
+        boolean initOk = true;
         try {
+            Files.createDirectories(HOME);
             protection = new ProtectionService(HOME);
             trustStore = TrustStore.load(TrustStore.DEFAULT_PATH);
             verification = new VerificationService(trustStore);
         } catch (IOException | GeneralSecurityException e) {
-            log.setText("初始化失败: " + e);
+            log.setText("初始化失败: " + e + "\n" + e.getClass().getName());
+            e.printStackTrace();
+            initOk = false;
         }
 
         // Left sidebar - controls
@@ -128,6 +132,12 @@ public class Main extends Application {
         protect.setOnAction(e -> protect());
         verify.setOnAction(e -> verify());
         trust.setOnAction(e -> trustCurrentIssuer());
+
+        if (!initOk) {
+            protect.setDisable(true);
+            verify.setDisable(true);
+            trust.setDisable(true);
+        }
 
         // Apply sidebar button styles
         in.getStyleClass().addAll("sidebar-button");
@@ -415,7 +425,17 @@ public class Main extends Application {
         });
         task.setOnFailed(e -> {
             sourceImage = null;
-            log.setText("读取失败: " + task.getException().getMessage());
+            Throwable ex = task.getException();
+            StringBuilder sb = new StringBuilder("读取失败: ");
+            if (ex != null) {
+                sb.append(ex.getClass().getName()).append(": ").append(ex.getMessage());
+                if (ex.getCause() != null) {
+                    sb.append(" | Cause: ").append(ex.getCause().getClass().getName()).append(": ").append(ex.getCause().getMessage());
+                }
+                // Print full stack trace to stderr for debugging
+                ex.printStackTrace();
+            }
+            log.setText(sb.toString());
             updatePreview();
         });
         new Thread(task).start();
@@ -452,6 +472,10 @@ public class Main extends Application {
     private void protect() {
         if (source == null || output == null) {
             log.setText("请先选择原图和输出文件");
+            return;
+        }
+        if (protection == null) {
+            log.setText("保护服务未初始化，请重启应用");
             return;
         }
         try {
@@ -505,6 +529,10 @@ public class Main extends Application {
             log.setText("请先选择输出图片作为待验证文件");
             return;
         }
+        if (verification == null) {
+            log.setText("验证服务未初始化，请重启应用");
+            return;
+        }
         try {
             log.setText(verification.verify(output).render());
         } catch (Exception e) {
@@ -515,6 +543,10 @@ public class Main extends Application {
     private void trustCurrentIssuer() {
         if (output == null) {
             log.setText("请先选择输出图片");
+            return;
+        }
+        if (trustStore == null) {
+            log.setText("信任存储未初始化，请重启应用");
             return;
         }
         try {

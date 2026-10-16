@@ -99,57 +99,95 @@ validate_jars() {
 
 validate_jars "$JAVAFX_MODULE_PATH" "$PATH_SEP" || exit 1
 
-# 创建运行时镜像（仅 JavaFX + 标准库模块）
-echo "=== 创建运行时镜像（JavaFX + 标准库）==="
-echo "JAVAFX_MODULE_PATH: $JAVAFX_MODULE_PATH"
+# 模块路径（包含 JavaFX + 我们的 JAR + PDFBox 自动模块）
+JAVAFX_VERSION="17.0.6"
+PDFBOX_VERSION="3.0.3"
+MAVEN_REPO="$HOME/.m2/repository"
+
+MODULE_JAR="target/yi-mark-${VERSION}.jar"
+
+# JavaFX 模块路径
+JAVAFX_MODULE_PATH="${MAVEN_REPO}/org/openjfx/javafx-controls/${JAVAFX_VERSION}/javafx-controls-${JAVAFX_VERSION}.jar"
+for mod in javafx-graphics javafx-base; do
+  JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}${PATH_SEP}${MAVEN_REPO}/org/openjfx/${mod}/${JAVAFX_VERSION}/${mod}-${JAVAFX_VERSION}.jar"
+  if [[ -n "$JAVAFX_CLASSIFIER" ]]; then
+    JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}${PATH_SEP}${MAVEN_REPO}/org/openjfx/${mod}/${JAVAFX_VERSION}/${mod}-${JAVAFX_VERSION}-${JAVAFX_CLASSIFIER}.jar"
+  fi
+done
+if [[ -n "$JAVAFX_CLASSIFIER" ]]; then
+  JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}${PATH_SEP}${MAVEN_REPO}/org/openjfx/javafx-controls/${JAVAFX_VERSION}/javafx-controls-${JAVAFX_VERSION}-${JAVAFX_CLASSIFIER}.jar"
+fi
+
+# PDFBox 自动模块路径（包含 commons-logging）
+PDFBOX_VERSION="3.0.3"
+PDFBOX_MODULE_PATH="${MAVEN_REPO}/org/apache/pdfbox/pdfbox/${PDFBOX_VERSION}/pdfbox-${PDFBOX_VERSION}.jar"
+PDFBOX_MODULE_PATH="${PDFBOX_MODULE_PATH}:${MAVEN_REPO}/org/apache/pdfbox/pdfbox-io/${PDFBOX_VERSION}/pdfbox-io-${PDFBOX_VERSION}.jar"
+PDFBOX_MODULE_PATH="${PDFBOX_MODULE_PATH}:${MAVEN_REPO}/org/apache/pdfbox/fontbox/${PDFBOX_VERSION}/fontbox-${PDFBOX_VERSION}.jar"
+PDFBOX_MODULE_PATH="${PDFBOX_MODULE_PATH}:${MAVEN_REPO}/commons-logging/commons-logging/1.3.3/commons-logging-1.3.3.jar"
+
+# 完整模块路径：JavaFX + 我们的模块 + PDFBox 自动模块
+FULL_MODULE_PATH="${JAVAFX_MODULE_PATH}:${MODULE_JAR}:${PDFBOX_MODULE_PATH}"
+
+echo "=== 创建运行时镜像（仅 JavaFX + 标准库）==="
+echo "FULL_MODULE_PATH: $FULL_MODULE_PATH"
 rm -rf target/runtime
 jlink --module-path "${JAVAFX_MODULE_PATH}" \
-  --add-modules "javafx.controls,javafx.graphics,javafx.base,java.base,java.logging,java.xml,java.desktop" \
+  --add-modules "javafx.controls,javafx.graphics,javafx.base,java.base,java.logging,java.xml,java.desktop,java.naming,jdk.crypto.ec" \
   --output target/runtime \
   --strip-debug --compress 2 --no-header-files --no-man-pages
 
-# 复制模块化 JAR 到运行时镜像的模块目录
-mkdir -p target/runtime/mods
-cp "${MODULE_JAR}" target/runtime/mods/
-
-# 复制非模块化依赖到运行时镜像的 lib 目录
-echo "=== 复制非模块化依赖到 runtime/lib ==="
+# 复制 PDFBox 等非模块化依赖到运行时镜像的 lib 目录（供 classpath 使用）
 mkdir -p target/runtime/lib
 cp "${MAVEN_REPO}/org/apache/pdfbox/pdfbox/${PDFBOX_VERSION}/pdfbox-${PDFBOX_VERSION}.jar" target/runtime/lib/
 cp "${MAVEN_REPO}/org/apache/pdfbox/pdfbox-io/${PDFBOX_VERSION}/pdfbox-io-${PDFBOX_VERSION}.jar" target/runtime/lib/
 cp "${MAVEN_REPO}/org/apache/pdfbox/fontbox/${PDFBOX_VERSION}/fontbox-${PDFBOX_VERSION}.jar" target/runtime/lib/
 cp "${MAVEN_REPO}/commons-logging/commons-logging/1.3.3/commons-logging-1.3.3.jar" target/runtime/lib/
+BOUNCYCASTLE_VERSION="1.78.1"
+cp "${MAVEN_REPO}/org/bouncycastle/bcprov-jdk18on/${BOUNCYCASTLE_VERSION}/bcprov-jdk18on-${BOUNCYCASTLE_VERSION}.jar" target/runtime/lib/
 
-echo "=== 打包应用（使用运行时镜像 + 模块路径包含我们的 JAR）==="
+# 创建单独的 applib 目录供 jpackage --resource-dir 使用（只包含 PDFBox jars）
+mkdir -p target/applib
+cp "${MAVEN_REPO}/org/apache/pdfbox/pdfbox/${PDFBOX_VERSION}/pdfbox-${PDFBOX_VERSION}.jar" target/applib/
+cp "${MAVEN_REPO}/org/apache/pdfbox/pdfbox-io/${PDFBOX_VERSION}/pdfbox-io-${PDFBOX_VERSION}.jar" target/applib/
+cp "${MAVEN_REPO}/org/apache/pdfbox/fontbox/${PDFBOX_VERSION}/fontbox-${PDFBOX_VERSION}.jar" target/applib/
+cp "${MAVEN_REPO}/commons-logging/commons-logging/1.3.3/commons-logging-1.3.3.jar" target/applib/
+cp "${MAVEN_REPO}/org/bouncycastle/bcprov-jdk18on/${BOUNCYCASTLE_VERSION}/bcprov-jdk18on-${BOUNCYCASTLE_VERSION}.jar" target/applib/
+
+# jpackage 的模块路径只包含 JavaFX 模块 + 我们的模块（PDFBox 走 classpath）
+JPackage_MODULE_PATH="${JAVAFX_MODULE_PATH}:${MODULE_JAR}"
+
+# 更彻底的清理，确保没有残留的临时目录
 rm -rf target/dist
-TIMESTAMP=$(date +%s)
+find target -maxdepth 1 -name 'tmp-*' -type d -exec rm -rf {} + 2>/dev/null || true
+find target -maxdepth 1 -name 'tmp-*' -type d -exec rm -rf {} + 2>/dev/null || true
+# Clean jpackage mods directory that causes FileAlreadyExistsException
+find target/dist -name 'mods' -type d -exec rm -rf {} + 2>/dev/null || true
+rm -rf target/dist
+# 彻底清理之前的 mods 目录残留
+rm -rf target/dist
+find target -name 'mods' -type d -exec rm -rf {} + 2>/dev/null || true
+ls -la target/ 2>/dev/null || echo "target not exist"
+# 使用 UUID 确保临时目录名唯一
+TIMESTAMP_DMG=$(uuidgen 2>/dev/null || echo "dmg-$(date +%s%N)-${RANDOM}-$$")
+TIMESTAMP_APP=$(uuidgen 2>/dev/null || echo "app-$(date +%s%N)-${RANDOM}-$$")
+TIMESTAMP_EXE=$(uuidgen 2>/dev/null || echo "exe-$(date +%s%N)-${RANDOM}-$$")
+TIMESTAMP_MSI=$(uuidgen 2>/dev/null || echo "msi-$(date +%s%N)-${RANDOM}-$$")
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  # macOS: 生成 .dmg 和 .app
-  # --runtime-image 使用预构建的运行时（含 JavaFX 模块）
-  # --module-path 包含：运行时镜像 + 我们的模块化 JAR
-  # --add-modules 添加我们的模块
-  # PDFBox 等非模块化依赖通过 --resource-dir 复制，并在 --java-options 中指定 classpath
-  FULL_MODULE_PATH="target/runtime${PATH_SEP}target/runtime/mods"
+  # macOS: 先生成 app-image，再用 app-image 生成 DMG（避免 jpackage 内部临时目录冲突）
+  echo "=== 步骤 1/2: 生成 app-image ==="
   
-  jpackage --type dmg \
-    --name "${APP_NAME}" \
-    --app-version "${VERSION}" \
-    --description "Yi Mark - 证件/文档水印保护工具" \
-    --vendor "Yi Mark Team" \
-    --copyright "2024 Yi Mark Team" \
-    --runtime-image target/runtime \
-    --module-path "${FULL_MODULE_PATH}" \
-    --module "${MODULE}/${MAIN_CLASS}" \
-    --dest target/dist \
-    --java-options "-Xmx512m -cp lib/pdfbox-${PDFBOX_VERSION}.jar:lib/pdfbox-io-${PDFBOX_VERSION}.jar:lib/fontbox-${PDFBOX_VERSION}.jar:lib/commons-logging-1.3.3.jar" \
-    --resource-dir target/runtime/lib \
-    --icon src/main/resources/yi-mark.icns \
-    --mac-package-identifier "com.yimark.app" \
-    --mac-package-name "${APP_NAME}" \
-    --temp "target/tmp-dmg-${TIMESTAMP}" \
-    --verbose
-
+  # 准备输入目录 - 包含 JAR 文件
+  JAR_SOURCE="/Users/scorpion/workspace/codeworkspace/yi-mark/target/yi-mark-1.0.0.jar"
+  INPUT_DIR="/Users/scorpion/workspace/codeworkspace/yi-mark/tmp-input"
+  mkdir -p "$INPUT_DIR"
+  cp "$JAR_SOURCE" "$INPUT_DIR/"
+  
+  # 输出目录 - 用于存放生成的 app-image
+  OUTPUT_DIR="/Users/scorpion/workspace/codeworkspace/yi-mark/target/dist"
+  mkdir -p "$OUTPUT_DIR"
+  
+  # 使用 --input 和 --dest 避免路径冲突
   jpackage --type app-image \
     --name "${APP_NAME}" \
     --app-version "${VERSION}" \
@@ -157,39 +195,64 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     --vendor "Yi Mark Team" \
     --copyright "2024 Yi Mark Team" \
     --runtime-image target/runtime \
-    --module-path "${FULL_MODULE_PATH}" \
-    --module "${MODULE}/${MAIN_CLASS}" \
-    --dest target/dist \
-    --java-options "-Xmx512m -cp lib/pdfbox-${PDFBOX_VERSION}.jar:lib/pdfbox-io-${PDFBOX_VERSION}.jar:lib/fontbox-${PDFBOX_VERSION}.jar:lib/commons-logging-1.3.3.jar" \
-    --resource-dir target/runtime/lib \
-    --icon src/main/resources/yi-mark.icns \
+    --input "$INPUT_DIR" \
+    --main-jar yi-mark-1.0.0.jar \
+    --dest "$OUTPUT_DIR" \
+    --java-options "-Xmx512m -cp /Applications/yi-mark.app/Contents/app/pdfbox-3.0.3.jar:/Applications/yi-mark.app/Contents/app/pdfbox-io-3.0.3.jar:/Applications/yi-mark.app/Contents/app/fontbox-3.0.3.jar:/Applications/yi-mark.app/Contents/app/commons-logging-1.3.3.jar -Djavafx.verbose=true" \
+    --resource-dir target/applib \
     --mac-package-identifier "com.yimark.app" \
     --mac-package-name "${APP_NAME}" \
-    --temp "target/tmp-app-${TIMESTAMP}" \
+    --temp "target/tmp-app-${TIMESTAMP_APP}" \
+    --verbose
+
+  # 清理临时目录，等待文件系统释放
+  rm -rf "target/tmp-app-${TIMESTAMP_APP}"
+
+  # 在生成 app-image 之前清理 mods 目录，避免 FileAlreadyExistsException
+  rm -rf "/Users/scorpion/workspace/codeworkspace/yi-mark/target/dist/yi-mark.app/Contents/app/mods" 2>/dev/null || true
+  
+  echo "=== 步骤 1/2: 生成 app-image ==="
+  
+  # 在生成 app-image 之前清理 mods 目录，避免 FileAlreadyExistsException
+  rm -rf "/Users/scorpion/workspace/codeworkspace/yi-mark/target/dist/yi-mark.app/Contents/app/mods" 2>/dev/null || true
+  sleep 1
+
+  echo "=== 步骤 2/2: 从 app-image 生成 DMG ==="
+  jpackage --type dmg \
+    --name "${APP_NAME}" \
+    --app-version "${VERSION}" \
+    --description "Yi Mark - 证件/文档水印保护工具" \
+    --vendor "Yi Mark Team" \
+    --copyright "2024 Yi Mark Team" \
+    --app-image "target/dist/${APP_NAME}.app" \
+    --dest target/dist \
+    --mac-package-identifier "com.yimark.app" \
+    --mac-package-name "${APP_NAME}" \
+    --icon src/main/resources/yi-mark.icns \
+    --temp "target/tmp-dmg-${TIMESTAMP_DMG}" \
     --verbose
 
   echo "✅ macOS 包已生成到 target/dist/"
 else
   # Windows: 生成 .exe 和 .msi
+  TIMESTAMP_EXE=$(date +%s%N)${RANDOM}
+  TIMESTAMP_MSI=$(date +%s%N)${RANDOM}
   FULL_MODULE_PATH="target/runtime${PATH_SEP}target/runtime/mods"
   
-  jpackage --type exe \
+jpackage --type exe \
     --name "${APP_NAME}" \
     --app-version "${VERSION}" \
     --description "Yi Mark - 证件/文档水印保护工具" \
     --vendor "Yi Mark Team" \
     --copyright "2024 Yi Mark Team" \
     --runtime-image target/runtime \
-    --module-path "${FULL_MODULE_PATH}" \
-    --module "${MODULE}/${MAIN_CLASS}" \
-    --dest target/dist \
-    --java-options "-Xmx512m -cp lib/pdfbox-${PDFBOX_VERSION}.jar;lib/pdfbox-io-${PDFBOX_VERSION}.jar;lib/fontbox-${PDFBOX_VERSION}.jar;lib/commons-logging-1.3.3.jar" \
-    --resource-dir target/runtime/lib \
-    --win-per-user-install \
-    --win-dir-chooser \
-    --win-menu \
-    --win-shortcut \
-    --temp "target/tmp-exe-${TIMESTAMP}" \
+    --input "$INPUT_DIR" \
+    --main-jar yi-mark-1.0.0.jar \
+    --dest "$INPUT_DIR" \
+    --java-options "-Xmx512m --add-modules=org.apache.pdfbox,org.apache.pdfbox.io,org.apache.fontbox,org.apache.commons.logging --add-reads=yi.mark=org.apache.pdfbox,org.apache.pdfbox.io,org.apache.fontbox,org.apache.commons.logging -Djavafx.verbose=true" \
+    --resource-dir target/applib \
+    --icon src/main/resources/yi-mark.icns \
+    --temp "target/tmp-exe-${TIMESTAMP_EXE}" \
     --verbose
 
   jpackage --type msi \
@@ -204,7 +267,7 @@ else
     --dest target/dist \
     --java-options "-Xmx512m -cp lib/pdfbox-${PDFBOX_VERSION}.jar;lib/pdfbox-io-${PDFBOX_VERSION}.jar;lib/fontbox-${PDFBOX_VERSION}.jar;lib/commons-logging-1.3.3.jar" \
     --resource-dir target/runtime/lib \
-    --temp "target/tmp-msi-${TIMESTAMP}" \
+    --temp "target/tmp-msi-${TIMESTAMP_MSI}" \
     --verbose
 
   echo "✅ Windows 包已生成到 target/dist/"
