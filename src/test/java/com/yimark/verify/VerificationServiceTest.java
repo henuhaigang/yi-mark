@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.yimark.image.PdfUtils;
 import com.yimark.protect.ProtectionService;
 import com.yimark.trust.TrustStore;
 import java.awt.Color;
@@ -46,6 +47,7 @@ class VerificationServiceTest {
         int fontSize = com.yimark.image.VisibleWatermark.baseFontSize(1200);
         return new ProtectionService(home).protect(source, output, "Acme Bank", "KYC", 0.18,
                 fontSize, -24.0, com.yimark.image.VisibleWatermark.DEFAULT_STAGGER_RATIO,
+                com.yimark.image.VisibleWatermark.DEFAULT_LINE_SPACING_RATIO,
                 false, 10, new ArrayList<>(), Color.GRAY);
     }
 
@@ -62,6 +64,32 @@ class VerificationServiceTest {
         assertTrue(report.trusted(), () -> report.render());
         assertTrue(report.intact(), () -> report.render());
         assertTrue(report.render().contains("matches the signed manifest"));
+    }
+
+    @Test
+    @DisplayName("a protected PDF verifies without a null image extraction")
+    void pdfFileVerifies() throws Exception {
+        Path home = tempDir.resolve("pdf-home");
+        Path source = tempDir.resolve("pdf-source.pdf");
+        PdfUtils.writePdf(List.of(photo(1200, 800)), source);
+        Path output = tempDir.resolve("pdf-protected.pdf");
+        int fontSize = com.yimark.image.VisibleWatermark.baseFontSize(1200);
+        ProtectionService.Result result = new ProtectionService(home).protect(
+                source, output, "Acme Bank", "KYC", 0.18,
+                fontSize, -24.0, com.yimark.image.VisibleWatermark.DEFAULT_STAGGER_RATIO,
+                com.yimark.image.VisibleWatermark.DEFAULT_LINE_SPACING_RATIO,
+                false, 10, new ArrayList<>(), Color.GRAY);
+
+        TrustStore store = TrustStore.empty()
+                .trustBase64(result.data().publicKeyBase64(), "Acme Bank", "2026-01-01");
+        VerificationService.Report report = new VerificationService(store).verify(result.image());
+
+        assertTrue(report.hashMatch(), () -> report.render());
+        assertTrue(report.signatureValid(), () -> report.render());
+        assertTrue(report.trusted(), () -> report.render());
+        assertTrue(report.intact(), () -> report.render());
+        assertNotNull(report.extraction(), () -> report.render());
+        assertTrue(report.extraction().recovered, () -> "watermark: " + report.extraction());
     }
 
     @Test

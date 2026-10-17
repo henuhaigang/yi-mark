@@ -47,6 +47,7 @@ public final class ProtectionService {
 
     public Result protect(Path source, Path output, String issuer, String purpose,
                           double opacity, int fontSize, double angle, double staggerRatio,
+                          double lineSpacingRatio,
                           boolean enableMosaic, int mosaicSize, List<Rectangle2D.Double> mosaicRegions,
                           Color watermarkColor)
             throws IOException, GeneralSecurityException {
@@ -64,7 +65,7 @@ public final class ProtectionService {
 
         for (BufferedImage image : images) {
             BufferedImage visible = VisibleWatermark.apply(image, issuer, purpose,
-                    "", opacity, fontSize, angle, staggerRatio, watermarkColor);
+                    "", opacity, fontSize, angle, staggerRatio, lineSpacingRatio, watermarkColor);
             
             // Apply mosaic if enabled
             if (enableMosaic && mosaicRegions != null && !mosaicRegions.isEmpty()) {

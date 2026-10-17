@@ -4,7 +4,7 @@
 - **Name**: yi-mark (formerly SecureDoc-Java)
 - **Type**: Cross-platform document watermark protection tool (Java 17 + JavaFX)
 - **Core features**: Visible tiled watermark + invisible DCT frequency-domain watermark + Ed25519 signed manifest
-- **Platforms**: macOS (app + dmg), Windows (exe + msi), Linux (runnable JAR)
+- **Platforms**: macOS (app + dmg), Windows (app-image + exe + msi), Linux (app-image)
 - **Language**: Java 17, Maven, JavaFX 17.0.6
 
 ## Architecture
@@ -15,7 +15,7 @@ com.yimark
 ├── image/            # VisibleWatermark (staggered tiles), GeometryMarkers, ImageOps (mosaic brush)
 ├── manifest/         # Signed manifest (V3, JSON, includes Ed25519 sig + HMAC token)
 ├── protect/          # ProtectionService (orchestrates visible + invisible + mosaic + signing)
-├── trust/            # TrustStore (pinned issuer keys, ~/.yimark/trusted-issuers.json)
+├── trust/            # TrustStore (pinned issuer keys, ~/.securedoc/trusted-issuers.json)
 ├── util/             # Minimal JSON parser (no external deps)
 ├── verify/           # VerificationService (SHA-256 + Ed25519 + trust anchor + watermark extraction)
 └── watermark/
@@ -31,9 +31,10 @@ com.yimark
 - **Sync**: 16-byte CRC32-derived preamble + 4-byte length, spread via block-hash mapping (survives crop/rotate)
 - **ECC**: RS(255,223) interleaved, corrects up to 16 byte errors per codeword
 - **Visible watermark**: Staggered tile grid (odd rows offset by half column step), FontMetrics-based spacing, no overlap
+- **Line spacing**: Continuous `lineSpacingRatio` multiplier for vertical row step, UI range `1.0-8.0`, default `2.4`, invalid values fall back to default
 - **Mosaic brush**: Manual brush tool with adjustable block size (2-50px), undo/redo history (50 steps), clear-all with undo support, real-time canvas overlay preview
 - **Watermark color picker**: Custom color support via JavaFX ColorPicker, default gray (128,128,128) for visibility on both light/dark backgrounds
-- **Trust model**: Manifest carries its own public key, but verification ONLY trusts keys pinned in `~/.yimark/trusted-issuers.json`
+- **Trust model**: Manifest carries its own public key, but verification ONLY trusts keys pinned in `~/.securedoc/trusted-issuers.json`
 - **No external JSON lib**: Custom flat-object parser in `Json.java`
 
 ## Build & Run
@@ -46,27 +47,40 @@ mvn clean javafx:run
 ./build-app.sh mac   # produces target/dist/yi-mark.app + yi-mark-1.0.0.dmg
 
 # Native packaging (Windows) - run on Windows
-./build-app.sh win   # produces target/dist/yi-mark-1.0.0.exe + .msi
+./build-app.sh win   # produces target/dist/yi-mark + yi-mark-1.0.0.exe + yi-mark-1.0.0.msi
+
+# Native packaging (Linux)
+./build-app.sh linux # produces target/dist/yi-mark app-image
 
 # Tests
-mvn test   # 28 tests (DctWatermark 9, ReedSolomon 6, TrustStore 7, VerificationService 6)
+mvn test   # 32 tests (DctWatermark 9, ReedSolomon 6, TrustStore 7, VerificationService 7, VisibleWatermark 2, MainProvider 1)
 ```
+
+## CI / Release
+- `.github/workflows/ci.yml`: runs `mvn test` on Ubuntu/macOS/Windows and packages macOS, Windows, and Linux artifacts.
+- `.github/workflows/release.yml`: triggered by `v*` tags, downloads packaging artifacts, generates `SHA256SUMS.txt`, and publishes a GitHub Release.
+- macOS DMG is created with `hdiutil create` because `jpackage --type dmg` may fail in local/CI environments with `hdiutil attach` permission issues.
+- Windows MSI requires WiX Toolset; the workflow installs it with Chocolatey before running `./build-app.sh win`.
 
 ## Module System
 - `module-info.java` declares `module yi.mark` with `requires javafx.controls/javafx.graphics/javafx.base/java.desktop`
 - All internal packages `opens ... to javafx.graphics` for JavaFX reflection
-- `jpackage` builds native images using `--module-path` with compiled classes + JavaFX jars
+- `build-app.sh` creates a jlink runtime with JavaFX modules, then uses `jpackage --type app-image` with `--input` + `--main-jar` so the app launcher classpath includes the app JAR and runtime dependencies
+- Do not pass `-cp` through `--java-options` for the packaged app; it can override the generated `app.classpath` and cause `ClassNotFoundException: com.yimark.Main`
 
 ## Configuration Files
-- `~/.yimark/ed25519.pk8` / `ed25519.pub` — Ed25519 keypair (auto-generated)
-- `~/.yimark/binding.key` — 32-byte HMAC key, 0600 perms
-- `~/.yimark/trusted-issuers.json` — pinned issuer public keys
+- `~/.securedoc/ed25519.pk8` / `ed25519.pub` — Ed25519 keypair (auto-generated)
+- `~/.securedoc/binding.key` — 32-byte HMAC key, 0600 perms
+- `~/.securedoc/trusted-issuers.json` — pinned issuer public keys
+- Protected output manifest is written as `<output-base>.securedoc.json`
 
 ## Testing Notes
 - Invisible watermark tests: clean, JPEG q90/q75, 50% downscale, unaligned crop, 1.5°/0.7° rotation, local damage — all recover with sync 100%
 - Reed-Solomon: 6 tests covering encode/decode/interleave/edge cases
 - TrustStore: 7 tests for pinning, lookup, save/load, revoke
-- VerificationService: 6 tests covering valid/tampered/untrusted/forged scenarios
+- VerificationService: 7 tests covering valid/tampered/untrusted/forged scenarios
+- VisibleWatermark: 2 tests covering continuous line-spacing row-step calculation and invalid-value fallback
+- MainProvider: 1 test covering BouncyCastle provider availability
 - Mosaic brush: undo/redo/clear all functionality tested
 
 ## Known Issues / TODO
@@ -76,6 +90,8 @@ mvn test   # 28 tests (DctWatermark 9, ReedSolomon 6, TrustStore 7, Verification
 4. Private keys stored in filesystem, not Keychain / Credential Manager
 5. Windows code signing / macOS notarization not configured
 6. Mosaic brush preview flickering fixed (block size slider now only updates overlay)
+7. Windows app icon requires `src/main/resources/yi-mark.ico`; if absent, `build-app.sh` omits `--icon` for Windows
+8. macOS icon cache may briefly show the old app icon after replacing `/Applications/yi-mark.app`
 
 ## Security Model
 - **Threat model**: Tampering detection, source authentication, raising watermark removal cost

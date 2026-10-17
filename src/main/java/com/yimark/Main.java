@@ -63,6 +63,7 @@ public class Main extends Application {
     private final TextField purpose = new TextField("仅供指定用途使用");
     private final Slider opacity = new Slider(0.08, 0.60, 0.30);
     private final Slider watermarkSize = new Slider(0.01, 3.0, 1.0);
+    private final Slider lineSpacing = new Slider(1.0, 8.0, VisibleWatermark.DEFAULT_LINE_SPACING_RATIO);
     private final Slider watermarkAngle = new Slider(-60, 60, -24);
     private final Slider staggerRatio = new Slider(-1.0, 1.0, VisibleWatermark.DEFAULT_STAGGER_RATIO);
     
@@ -110,6 +111,7 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) {
         boolean initOk = true;
+        ensureEd25519Provider();
         try {
             Files.createDirectories(HOME);
             protection = new ProtectionService(HOME);
@@ -164,6 +166,7 @@ public class Main extends Application {
         Label purposeLabel = new Label("用途");
         Label opacityLabel = new Label("透明度");
         Label sizeLabel = new Label("大小");
+        Label lineSpacingLabel = new Label("行间距");
         Label angleLabel = new Label("角度°");
         Label staggerLabel = new Label("错位");
         Label mosaicLabel = new Label("马赛克");
@@ -172,6 +175,7 @@ public class Main extends Application {
         purposeLabel.getStyleClass().add("label");
         opacityLabel.getStyleClass().add("label");
         sizeLabel.getStyleClass().add("label");
+        lineSpacingLabel.getStyleClass().add("label");
         angleLabel.getStyleClass().add("label");
         staggerLabel.getStyleClass().add("label");
         mosaicLabel.getStyleClass().add("label");
@@ -180,6 +184,7 @@ public class Main extends Application {
         purpose.setPrefWidth(220);
         opacity.setPrefWidth(220);
         watermarkSize.setPrefWidth(220);
+        lineSpacing.setPrefWidth(220);
         watermarkAngle.setPrefWidth(220);
         staggerRatio.setPrefWidth(220);
         mosaicEnabled.setPrefWidth(220);
@@ -190,6 +195,7 @@ public class Main extends Application {
         purpose.getStyleClass().add("text-field");
         opacity.getStyleClass().add("slider");
         watermarkSize.getStyleClass().add("slider");
+        lineSpacing.getStyleClass().add("slider");
         watermarkAngle.getStyleClass().add("slider");
         staggerRatio.getStyleClass().add("slider");
         mosaicBlockSize.getStyleClass().add("slider");
@@ -232,6 +238,7 @@ public class Main extends Application {
                 settingsDivider,
                 opacityLabel, opacity,
                 sizeLabel, watermarkSize,
+                lineSpacingLabel, lineSpacing,
                 angleLabel, watermarkAngle,
                 staggerLabel, staggerRatio,
                 mosaicDivider,
@@ -314,6 +321,7 @@ public class Main extends Application {
         purpose.textProperty().addListener((o, a, b) -> updatePreview());
         opacity.valueProperty().addListener((o, a, b) -> updatePreview());
         watermarkSize.valueProperty().addListener((o, a, b) -> updatePreview());
+        lineSpacing.valueProperty().addListener((o, a, b) -> updatePreview());
         watermarkAngle.valueProperty().addListener((o, a, b) -> updatePreview());
         staggerRatio.valueProperty().addListener((o, a, b) -> updatePreview());
         mosaicEnabled.selectedProperty().addListener((o, a, b) -> updatePreview());
@@ -374,7 +382,7 @@ public class Main extends Application {
         BufferedImage scaled = fitWidth(sourceImage, scaledW);
         int fontSize = fontSizeFor(scaled.getWidth());
         BufferedImage watermarked = VisibleWatermark.apply(scaled, issuer.getText(),
-                purpose.getText(), "", opacity.getValue(), fontSize, watermarkAngle.getValue(), staggerRatio.getValue(), toAWTColor(watermarkColorPicker.getValue()));
+                purpose.getText(), "", opacity.getValue(), fontSize, watermarkAngle.getValue(), staggerRatio.getValue(), lineSpacing.getValue(), toAWTColor(watermarkColorPicker.getValue()));
 
         // Apply mosaic if enabled and there are drawn regions
         if (mosaicEnabled.isSelected() && !mosaicRegions.isEmpty()) {
@@ -500,7 +508,7 @@ public class Main extends Application {
             
             ProtectionService.Result result = protection.protect(
                     source, output, issuer.getText(), purpose.getText(), opacity.getValue(),
-                    fontSize, watermarkAngle.getValue(), staggerRatio.getValue(),
+                    fontSize, watermarkAngle.getValue(), staggerRatio.getValue(), lineSpacing.getValue(),
                     enableMosaic, (int) mosaicBlockSize.getValue(), sourceMosaicRegions,
                     toAWTColor(watermarkColorPicker.getValue()));
             
@@ -718,6 +726,22 @@ public class Main extends Application {
         out.getPixelWriter().setPixels(0, 0, width, height,
                 PixelFormat.getIntArgbInstance(), argb, 0, width);
         return out;
+    }
+
+    static void ensureEd25519Provider() {
+        try {
+            java.security.KeyFactory.getInstance("Ed25519");
+            return;
+        } catch (GeneralSecurityException ignored) {
+        }
+        try {
+            Class<?> providerClass = Class.forName("org.bouncycastle.jce.provider.BouncyCastleProvider");
+            java.security.Provider provider = (java.security.Provider) providerClass.getConstructor().newInstance();
+            if (java.security.Security.getProvider(provider.getName()) == null) {
+                java.security.Security.addProvider(provider);
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     public static void main(String[] args) {

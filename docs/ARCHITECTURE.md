@@ -6,7 +6,7 @@ com.yimark
 ├── image/            # VisibleWatermark (staggered tiles), GeometryMarkers, ImageOps (mosaic brush)
 ├── manifest/         # Signed manifest (V3, JSON, includes Ed25519 sig + HMAC token)
 ├── protect/          # ProtectionService (orchestrates visible + invisible + mosaic + signing)
-├── trust/            # TrustStore (pinned issuer keys, ~/.yimark/trusted-issuers.json)
+├── trust/            # TrustStore (pinned issuer keys, ~/.securedoc/trusted-issuers.json)
 ├── util/             # Minimal JSON parser (no external deps)
 ├── verify/           # VerificationService (SHA-256 + Ed25519 + trust anchor + watermark extraction)
 └── watermark/
@@ -20,13 +20,14 @@ com.yimark
 ## Protection Pipeline
 
 1. **Read Source** — PNG/JPG/PDF (PDF: all pages supported)
-2. **Visible Watermark** — Staggered tiles with configurable stagger/opacity/size/angle
-3. **Watermark Color** — Custom color via JavaFX ColorPicker, default gray (128,128,128)
-3. **Mosaic Brush** — User-drawn regions, configurable block size (2-50px), undo/redo (50 steps)
-4. **Invisible Watermark** — 8×8 DCT, coeff pair (2,3)/(3,2), strength 18, RS(255,223) ECC
-4. **Geometry Markers** — 4-corner markers for sync recovery
-5. **Sign Manifest** — Ed25519 over `documentId|protectedSha256|watermarkToken`
-5. **Output** — PNG/PDF + `.yimark.json` manifest
+2. **Visible Watermark** — Staggered tiles with configurable stagger, opacity, size, angle, line spacing, and color
+3. **Line Spacing** — Continuous vertical row-step multiplier (`1.0-8.0`, default `2.4`)
+4. **Watermark Color** — Custom color via JavaFX ColorPicker, default gray (128,128,128)
+5. **Mosaic Brush** — User-drawn regions, configurable block size (2-50px), undo/redo (50 steps)
+6. **Invisible Watermark** — 8×8 DCT, coeff pair (2,3)/(3,2), strength 18, RS(255,223) ECC
+7. **Geometry Markers** — 4-corner markers for sync recovery
+8. **Sign Manifest** — Ed25519 over `documentId|protectedSha256|watermarkToken`
+9. **Output** — PNG/PDF + `<output-base>.securedoc.json` manifest
 
 ## Security Model
 
@@ -35,6 +36,7 @@ com.yimark
 - **Trust anchor**: User must manually pin issuer keys; first use requires "Trust Current Issuer" click
 - **Signature scope**: `documentId|protectedSha256|watermarkToken` only; `sourceSha256` only bound via HMAC token
 - **Mosaic**: User-drawn regions only; coordinates mapped from preview to source image
+- **Local state**: Keys, binding secret, and trust store live under `~/.securedoc/`
 
 ## Known Limitations
 
@@ -43,6 +45,13 @@ com.yimark
 3. Watermark extraction result not cross-checked against manifest fields
 4. Private keys stored in filesystem, not Keychain / Credential Manager
 5. Windows code signing / macOS notarization not configured
+
+## CI / Packaging
+
+- CI runs unit tests on Ubuntu, macOS, and Windows.
+- CI packages macOS `.app` + `.dmg`, Windows app-image + `.exe` + `.msi`, and Linux app-image.
+- Release workflow publishes artifacts and `SHA256SUMS.txt` on `v*` tags.
+- macOS DMG generation uses `hdiutil create` to avoid `jpackage --type dmg` attach failures.
 
 ## Future Work
 

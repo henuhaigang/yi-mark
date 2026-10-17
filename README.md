@@ -1,8 +1,11 @@
 # Yi Mark (yi-mark)
 
+[![CI](https://github.com/henuhaigang/yi-mark/actions/workflows/ci.yml/badge.svg)](https://github.com/henuhaigang/yi-mark/actions/workflows/ci.yml)
+[![Release](https://github.com/henuhaigang/yi-mark/actions/workflows/release.yml/badge.svg)](https://github.com/henuhaigang/yi-mark/actions/workflows/release.yml)
+
 Java 17 + JavaFX + Maven 的 macOS/Windows/Linux 证件/文档水印保护工具。
 
-对图片/PDF 施加动态可见水印 + 频域隐形水印 + **手动马赛克涂抹**，并生成带 Ed25519 签名的 `.yimark.json` 清单，用于校验文件是否被改动。定位是「篡改可感知 + 提高去水印成本」，不是 DRM，也不阻止拍照或 AI 重绘。
+对图片/PDF 施加动态可见水印 + 频域隐形水印 + **手动马赛克涂抹**，并生成带 Ed25519 签名的 `.securedoc.json` 清单，用于校验文件是否被改动。定位是「篡改可感知 + 提高去水印成本」，不是 DRM，也不阻止拍照或 AI 重绘。
 
 ---
 
@@ -28,11 +31,27 @@ mvn clean javafx:run
 # macOS 生成 .app + .dmg
 ./build-app.sh mac
 
-# Windows 生成 .exe + .msi（需在 Windows 上运行）
+# Windows 生成 app-image + .exe + .msi（需在 Windows 上运行，MSI 需要 WiX Toolset）
 ./build-app.sh win
+
+# Linux 生成 app-image
+./build-app.sh linux
+
+# 按当前操作系统自动选择
+./build-app.sh all
 ```
 
-> 打包脚本会自动下载 JavaFX 原生库、构建模块化运行时、生成原生安装包。
+> 打包脚本会构建 JAR、收集运行时依赖、创建 jlink 运行时、生成 app-image，并在 macOS 上通过 `hdiutil` 生成 DMG。
+> GitHub Actions 会在 `main` 分支 push、PR 和手动触发时运行测试与三平台打包；`v*` tag 会创建 GitHub Release。
+
+### CI / Release
+
+| 工作流 | 触发条件 | 产物 |
+|--------|----------|------|
+| `.github/workflows/ci.yml` | `main` push、PR、手动触发 | 测试报告 + macOS/Windows/Linux 打包 artifacts |
+| `.github/workflows/release.yml` | `v*` tag | GitHub Release，包含 DMG、EXE、MSI、Linux app-image 与 SHA256 校验文件 |
+
+发布 tag 时建议 tag 版本与 `pom.xml` 版本一致，例如 `pom.xml` 为 `1.0.0` 时推送 `v1.0.0`。
 
 ---
 
@@ -44,19 +63,21 @@ mvn clean javafx:run
 | **实时预览** | 中间大区域即时渲染可见水印，拖动滑块即时刷新 |
 | **使用方** | 签发方身份（如「招商银行」「派出所」），为空则不显示 |
 | **用途** | 使用场景（如「仅供 KYC 使用」），为空则不显示 |
-| **透明度** | 0.08–0.45，默认 0.20 |
+| **透明度** | 0.08–0.60，默认 0.30 |
 | **大小** | 0.01×–3.0×，默认 1.0×，可调至 1px（近乎隐形） |
+| **行间距** | 1.0×–8.0×，默认 2.4×，连续调节可见水印行距 |
 | **角度°** | –60° 到 60°，默认 –24°（负值向右上倾斜） |
 | **错位** | –1.0 到 1.0，默认 0.5（半步交错）<br>• >0：奇数行按比例错位（0.5 = 半列步）<br>• =0：不交错，整齐网格<br>• <0：随机错位，每行独立随机偏移（推荐用于提高去水印难度） |
 | **马赛克** | **新增**：启用后可在预览图上手动涂抹马赛克，支持调整粗细、撤销、清除 |
 | **水印颜色** | **新增**：支持自定义水印颜色，默认灰色（128,128,128），在深色/浅色背景下均清晰可见 |
-| **生成保护文件** | 写入可见/隐形水印 + 四角几何标记 + 马赛克，输出 `xxx.png` / `xxx.pdf` + `xxx.yimark.json` |
-| **信任当前签发方** | 把本机签发公钥写入 `~/.yimark/trusted-issuers.json` |
+| **生成保护文件** | 写入可见/隐形水印 + 四角几何标记 + 马赛克，输出 `xxx.png` / `xxx.pdf` + `xxx.securedoc.json` |
+| **信任当前签发方** | 把本机签发公钥写入 `~/.securedoc/trusted-issuers.json` |
 | **验证文件** | 校验 SHA-256、Ed25519 签名、信任库、隐形水印恢复 |
 
 ### 水印设计
 
 - **可见水印**：交错布局（支持固定比例 / 无交错 / 随机错位），FontMetrics 动态测宽，长文本不重叠
+- **行间距**：连续滑杆控制行距倍率（1.0×–8.0×，默认 2.4×），预览与正式保护使用同一参数
 - **隐形水印**：8×8 DCT 频域，系数对 (2,3)/(3,2)，强度 18（PSNR ≈ 52 dB），CRC32 同步前导码 + 4 字节长度 + 载荷，RS(255,223) 交错编码，块哈希映射天然抗裁剪/旋转
 - **马赛克**：手动涂抹，可调节块大小（2-50px），支持撤销/清除，仅对涂抹区域生效
 - **水印颜色**：**新增** 支持自定义颜色，默认灰色（128,128,128），在深色/浅色背景下均清晰可见
@@ -80,9 +101,9 @@ mvn clean javafx:run
 | `algorithmSuite` | `SHA-256/HMAC-SHA256/Ed25519/8x8-DCT-COEFF-PAIR/CRC32/RS(255,223)` |
 
 本地文件（首次运行自动生成）：
-- `~/.yimark/ed25519.pk8 / ed25519.pub`：Ed25519 密钥对
-- `~/.yimark/binding.key`：32 字节随机绑定密钥（权限 0600），用于 HMAC
-- `~/.yimark/trusted-issuers.json`：信任的签发方公钥列表
+- `~/.securedoc/ed25519.pk8 / ed25519.pub`：Ed25519 密钥对
+- `~/.securedoc/binding.key`：32 字节随机绑定密钥（权限 0600），用于 HMAC
+- `~/.securedoc/trusted-issuers.json`：信任的签发方公钥列表
 
 ---
 
@@ -121,7 +142,7 @@ mvn clean javafx:run
 | 旋转 0.7° | 是 | ~10 s |
 | 局部涂黑 400×300 | 是 | ~60 ms |
 
-单元测试 28 项（DctWatermark 9 / ReedSolomon 6 / TrustStore 7 / VerificationService 6）：
+单元测试 32 项（DctWatermark 9 / ReedSolomon 6 / TrustStore 7 / VerificationService 7 / VisibleWatermark 2 / MainProvider 1）：
 
 ```bash
 mvn test
@@ -137,7 +158,7 @@ mvn test
 - **水印恢复后未与清单交叉校验**：`verify()` 只报告，不把解出的 `documentId`/`token` 与清单比对
 - **签名字段范围**：Ed25519 只覆盖 `documentId\|protectedSha256\|watermarkToken`；`sourceSha256` 仅通过 token 间接绑定
 - **信任锚需人工维护**：全新安装时信任库为空，所有签发方判为 UNTRUSTED，需先「信任当前签发方」
-- **密钥仍在文件系统**：私钥与绑定密钥在 `~/.yimark`，未接 macOS Keychain / Windows Credential Manager
+- **密钥仍在文件系统**：私钥与绑定密钥在 `~/.securedoc`，未接 macOS Keychain / Windows Credential Manager
 - **载荷上限**：每个 RS 码字最多 223 字节数据，需足够 8×8 块；过小图片直接拒绝嵌入
 - 不抵抗任意 AI 重绘，也不阻止另一台设备拍照
 
@@ -151,7 +172,7 @@ mvn test
 - 更抗裁剪的稀疏同步模板 / 冗余布局
 - 私钥与绑定密钥迁到 macOS Keychain / Windows Credential Manager
 - 考虑 DWT 方案替代当前 DCT 参考实现
-- 把 JPEG、截图、裁剪、旋转、缩放攻击集纳入 CI
+- 把 JPEG、截图、裁剪、旋转、缩放攻击集纳入 CI（当前 CI 已覆盖单元测试与三平台打包）
 - Windows 代码签名 / macOS 公证
 
 ---

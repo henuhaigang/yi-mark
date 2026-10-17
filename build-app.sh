@@ -1,112 +1,97 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # yi-mark 跨平台打包脚本
-# 用法: ./build-app.sh [mac|win|all]
-# macOS 上运行可生成 macOS 安装包
-# Windows 上运行可生成 Windows 安装包
+# 用法:
+#   ./build-app.sh mac    # 在 macOS 上生成 .app + .dmg
+#   ./build-app.sh win    # 在 Windows 上生成 .app + .exe + .msi
+#   ./build-app.sh linux  # 在 Linux 上生成 app-image
+#   ./build-app.sh all    # 按当前操作系统生成对应安装包
 #
 # 环境变量:
-#   VERSION - 应用版本号 (默认从 pom.xml 读取)
+#   VERSION - 应用版本号（默认从 pom.xml 读取）
 
 set -e
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$PROJECT_DIR"
 
-# 从 pom.xml 读取版本，或使用环境变量 VERSION
-if [ -z "$VERSION" ]; then
-  VERSION=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec 2>/dev/null)
-fi
-VERSION="${VERSION:-1.0.0}"
+COMMAND="${1:-all}"
 
 APP_NAME="yi-mark"
-MAIN_CLASS="com.yimark.Main"
-MODULE="yi.mark"
-
-echo "=== Building version: $VERSION ==="
-
-cd "$PROJECT_DIR"
-
-echo "=== 清理并编译 ==="
-mvn -B clean compile
-
-echo "=== 打包模块化 JAR ==="
-mvn -B package -DskipTests
-
-# 模块路径（仅 JavaFX 模块，用于 jlink）
 JAVAFX_VERSION="17.0.6"
 PDFBOX_VERSION="3.0.3"
+BOUNCYCASTLE_VERSION="1.78.1"
+COMMONS_LOGGING_VERSION="1.3.3"
 
-# 使用 Maven 查找本地仓库路径，兼容跨平台
-MAVEN_REPO=$(mvn -q -Dexec.executable=echo -Dexec.args='${settings.localRepository}' --non-recursive exec:exec 2>/dev/null)
-MAVEN_REPO="${MAVEN_REPO:-$HOME/.m2/repository}"
-
-MODULE_JAR="target/yi-mark-${VERSION}.jar"
-
-# 检测平台
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  ARCH=$(uname -m)
-  if [[ "$ARCH" == "arm64" ]]; then
+  OS="mac"
+  if [[ "$(uname -m)" == "arm64" ]]; then
     JAVAFX_CLASSIFIER="mac-aarch64"
   else
     JAVAFX_CLASSIFIER="mac"
   fi
   PATH_SEP=":"
 elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$WINDIR" ]]; then
-  # Windows (Git Bash, MSYS2, Cygwin)
+  OS="win"
   JAVAFX_CLASSIFIER="win"
   PATH_SEP=";"
 else
-  JAVAFX_CLASSIFIER=""
+  OS="linux"
+  JAVAFX_CLASSIFIER="linux"
   PATH_SEP=":"
 fi
 
-echo "OSTYPE=$OSTYPE, PATH_SEP=$PATH_SEP, JAVAFX_CLASSIFIER=$JAVAFX_CLASSIFIER"
+case "$COMMAND" in
+  mac|win|linux)
+    ;;
+  all)
+    COMMAND="$OS"
+    ;;
+  *)
+    echo "ERROR: unknown command: $COMMAND"
+    echo "Usage: $0 [mac|win|linux|all]"
+    exit 1
+    ;;
+esac
 
-MAVEN_REPO=$(mvn -q -Dexec.executable=echo -Dexec.args='${settings.localRepository}' --non-recursive exec:exec 2>/dev/null)
+if [[ "$COMMAND" != "$OS" ]]; then
+  echo "ERROR: $COMMAND packaging must run on the $COMMAND host (current host: $OS)"
+  exit 1
+fi
+
+VERSION="${VERSION:-$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout | tr -d '[:space:]')}"
+VERSION="${VERSION:-1.0.0}"
+MAIN_JAR="yi-mark-${VERSION}.jar"
+
+echo "=== yi-mark packaging ==="
+echo "host=$OS command=$COMMAND version=$VERSION"
+
+echo "=== 清理并打包 JAR ==="
+mvn -B -ntp clean package -DskipTests
+
+MAVEN_REPO="$(mvn -q help:evaluate -Dexpression=settings.localRepository -DforceStdout | tr -d '[:space:]')"
 MAVEN_REPO="${MAVEN_REPO:-$HOME/.m2/repository}"
 
-MODULE_JAR="target/yi-mark-${VERSION}.jar"
+echo "=== 收集运行时依赖 ==="
+rm -rf target/applib target/input target/dist
+mkdir -p target/applib target/input target/dist
 
-JAVAFX_VERSION="17.0.6"
-PDFBOX_VERSION="3.0.3"
-
-JAVAFX_MODULE_PATH="${MAVEN_REPO}/org/openjfx/javafx-controls/${JAVAFX_VERSION}/javafx-controls-${JAVAFX_VERSION}.jar"
-for mod in javafx-graphics javafx-base; do
-  JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}${PATH_SEP}${MAVEN_REPO}/org/openjfx/${mod}/${JAVAFX_VERSION}/${mod}-${JAVAFX_VERSION}.jar"
-  if [[ -n "$JAVAFX_CLASSIFIER" ]]; then
-    JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}${PATH_SEP}${MAVEN_REPO}/org/openjfx/${mod}/${JAVAFX_VERSION}/${mod}-${JAVAFX_VERSION}-${JAVAFX_CLASSIFIER}.jar"
-  fi
-done
-if [[ -n "$JAVAFX_CLASSIFIER" ]]; then
-  JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}${PATH_SEP}${MAVEN_REPO}/org/openjfx/javafx-controls/${JAVAFX_VERSION}/javafx-controls-${JAVAFX_VERSION}-${JAVAFX_CLASSIFIER}.jar"
-fi
-
-echo "JAVAFX_MODULE_PATH: $JAVAFX_MODULE_PATH"
-
-# 验证 JavaFX JAR 存在
-validate_jars() {
-  local module_path="$1"
-  local sep="$2"
-  IFS="$sep" read -ra JARS <<< "$module_path"
-  for jar in "${JARS[@]}"; do
-    if [[ ! -f "$jar" ]]; then
-      echo "ERROR: JavaFX JAR not found: $jar"
-      return 1
-    fi
-  done
-  return 0
+copy_dependency() {
+  local artifact="$1"
+  mvn -B -ntp org.apache.maven.plugins:maven-dependency-plugin:3.6.1:copy \
+    -Dartifact="$artifact" \
+    -DoutputDirectory="target/applib"
 }
 
-validate_jars "$JAVAFX_MODULE_PATH" "$PATH_SEP" || exit 1
+copy_dependency "org.apache.pdfbox:pdfbox:${PDFBOX_VERSION}"
+copy_dependency "org.apache.pdfbox:pdfbox-io:${PDFBOX_VERSION}"
+copy_dependency "org.apache.pdfbox:fontbox:${PDFBOX_VERSION}"
+copy_dependency "commons-logging:commons-logging:${COMMONS_LOGGING_VERSION}"
+copy_dependency "org.bouncycastle:bcprov-jdk18on:${BOUNCYCASTLE_VERSION}"
 
-# 模块路径（包含 JavaFX + 我们的 JAR + PDFBox 自动模块）
-JAVAFX_VERSION="17.0.6"
-PDFBOX_VERSION="3.0.3"
-MAVEN_REPO="$HOME/.m2/repository"
+cp "target/${MAIN_JAR}" target/input/
+cp target/applib/*.jar target/input/
 
-MODULE_JAR="target/yi-mark-${VERSION}.jar"
-
-# JavaFX 模块路径
+echo "=== 创建 jlink 运行时 ==="
 JAVAFX_MODULE_PATH="${MAVEN_REPO}/org/openjfx/javafx-controls/${JAVAFX_VERSION}/javafx-controls-${JAVAFX_VERSION}.jar"
 for mod in javafx-graphics javafx-base; do
   JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}${PATH_SEP}${MAVEN_REPO}/org/openjfx/${mod}/${JAVAFX_VERSION}/${mod}-${JAVAFX_VERSION}.jar"
@@ -118,159 +103,104 @@ if [[ -n "$JAVAFX_CLASSIFIER" ]]; then
   JAVAFX_MODULE_PATH="${JAVAFX_MODULE_PATH}${PATH_SEP}${MAVEN_REPO}/org/openjfx/javafx-controls/${JAVAFX_VERSION}/javafx-controls-${JAVAFX_VERSION}-${JAVAFX_CLASSIFIER}.jar"
 fi
 
-# PDFBox 自动模块路径（包含 commons-logging）
-PDFBOX_VERSION="3.0.3"
-PDFBOX_MODULE_PATH="${MAVEN_REPO}/org/apache/pdfbox/pdfbox/${PDFBOX_VERSION}/pdfbox-${PDFBOX_VERSION}.jar"
-PDFBOX_MODULE_PATH="${PDFBOX_MODULE_PATH}:${MAVEN_REPO}/org/apache/pdfbox/pdfbox-io/${PDFBOX_VERSION}/pdfbox-io-${PDFBOX_VERSION}.jar"
-PDFBOX_MODULE_PATH="${PDFBOX_MODULE_PATH}:${MAVEN_REPO}/org/apache/pdfbox/fontbox/${PDFBOX_VERSION}/fontbox-${PDFBOX_VERSION}.jar"
-PDFBOX_MODULE_PATH="${PDFBOX_MODULE_PATH}:${MAVEN_REPO}/commons-logging/commons-logging/1.3.3/commons-logging-1.3.3.jar"
+IFS="$PATH_SEP" read -r -a MODULE_JARS <<< "$JAVAFX_MODULE_PATH"
+for jar in "${MODULE_JARS[@]}"; do
+  if [[ ! -f "$jar" ]]; then
+    echo "ERROR: JavaFX JAR not found: $jar"
+    exit 1
+  fi
+done
 
-# 完整模块路径：JavaFX + 我们的模块 + PDFBox 自动模块
-FULL_MODULE_PATH="${JAVAFX_MODULE_PATH}:${MODULE_JAR}:${PDFBOX_MODULE_PATH}"
-
-echo "=== 创建运行时镜像（仅 JavaFX + 标准库）==="
-echo "FULL_MODULE_PATH: $FULL_MODULE_PATH"
-rm -rf target/runtime
-jlink --module-path "${JAVAFX_MODULE_PATH}" \
+jlink \
+  --module-path "$JAVAFX_MODULE_PATH" \
   --add-modules "javafx.controls,javafx.graphics,javafx.base,java.base,java.logging,java.xml,java.desktop,java.naming,jdk.crypto.ec" \
   --output target/runtime \
   --strip-debug --compress 2 --no-header-files --no-man-pages
 
-# 复制 PDFBox 等非模块化依赖到运行时镜像的 lib 目录（供 classpath 使用）
-mkdir -p target/runtime/lib
-cp "${MAVEN_REPO}/org/apache/pdfbox/pdfbox/${PDFBOX_VERSION}/pdfbox-${PDFBOX_VERSION}.jar" target/runtime/lib/
-cp "${MAVEN_REPO}/org/apache/pdfbox/pdfbox-io/${PDFBOX_VERSION}/pdfbox-io-${PDFBOX_VERSION}.jar" target/runtime/lib/
-cp "${MAVEN_REPO}/org/apache/pdfbox/fontbox/${PDFBOX_VERSION}/fontbox-${PDFBOX_VERSION}.jar" target/runtime/lib/
-cp "${MAVEN_REPO}/commons-logging/commons-logging/1.3.3/commons-logging-1.3.3.jar" target/runtime/lib/
-BOUNCYCASTLE_VERSION="1.78.1"
-cp "${MAVEN_REPO}/org/bouncycastle/bcprov-jdk18on/${BOUNCYCASTLE_VERSION}/bcprov-jdk18on-${BOUNCYCASTLE_VERSION}.jar" target/runtime/lib/
+echo "=== 生成 app-image ==="
+ICON_ARGS=()
+if [[ "$OS" == "mac" && -f "src/main/resources/yi-mark.icns" ]]; then
+  ICON_ARGS+=(--icon "src/main/resources/yi-mark.icns")
+elif [[ "$OS" == "win" && -f "src/main/resources/yi-mark.ico" ]]; then
+  ICON_ARGS+=(--icon "src/main/resources/yi-mark.ico")
+elif [[ "$OS" == "linux" && -f "src/main/resources/yi-mark.png" ]]; then
+  ICON_ARGS+=(--icon "src/main/resources/yi-mark.png")
+fi
 
-# 创建单独的 applib 目录供 jpackage --resource-dir 使用（只包含 PDFBox jars）
-mkdir -p target/applib
-cp "${MAVEN_REPO}/org/apache/pdfbox/pdfbox/${PDFBOX_VERSION}/pdfbox-${PDFBOX_VERSION}.jar" target/applib/
-cp "${MAVEN_REPO}/org/apache/pdfbox/pdfbox-io/${PDFBOX_VERSION}/pdfbox-io-${PDFBOX_VERSION}.jar" target/applib/
-cp "${MAVEN_REPO}/org/apache/pdfbox/fontbox/${PDFBOX_VERSION}/fontbox-${PDFBOX_VERSION}.jar" target/applib/
-cp "${MAVEN_REPO}/commons-logging/commons-logging/1.3.3/commons-logging-1.3.3.jar" target/applib/
-cp "${MAVEN_REPO}/org/bouncycastle/bcprov-jdk18on/${BOUNCYCASTLE_VERSION}/bcprov-jdk18on-${BOUNCYCASTLE_VERSION}.jar" target/applib/
+PLATFORM_ARGS=()
+if [[ "$OS" == "mac" ]]; then
+  PLATFORM_ARGS+=(
+    --mac-package-identifier "com.yimark.app"
+    --mac-package-name "$APP_NAME"
+  )
+elif [[ "$OS" == "linux" ]]; then
+  PLATFORM_ARGS+=(--linux-app-category "Utility")
+fi
 
-# jpackage 的模块路径只包含 JavaFX 模块 + 我们的模块（PDFBox 走 classpath）
-JPackage_MODULE_PATH="${JAVAFX_MODULE_PATH}:${MODULE_JAR}"
+jpackage \
+  --type app-image \
+  --name "$APP_NAME" \
+  --app-version "$VERSION" \
+  --description "Yi Mark - 证件/文档水印保护工具" \
+  --vendor "Yi Mark Team" \
+  --copyright "2024 Yi Mark Team" \
+  --runtime-image target/runtime \
+  --input target/input \
+  --main-jar "$MAIN_JAR" \
+  --dest target/dist \
+  --java-options "-Xmx512m --add-modules jdk.crypto.ec" \
+  --temp "target/tmp-app-${OS}-$$" \
+  "${ICON_ARGS[@]}" \
+  "${PLATFORM_ARGS[@]}"
 
-# 更彻底的清理，确保没有残留的临时目录
-rm -rf target/dist
-find target -maxdepth 1 -name 'tmp-*' -type d -exec rm -rf {} + 2>/dev/null || true
-find target -maxdepth 1 -name 'tmp-*' -type d -exec rm -rf {} + 2>/dev/null || true
-# Clean jpackage mods directory that causes FileAlreadyExistsException
-find target/dist -name 'mods' -type d -exec rm -rf {} + 2>/dev/null || true
-rm -rf target/dist
-# 彻底清理之前的 mods 目录残留
-rm -rf target/dist
-find target -name 'mods' -type d -exec rm -rf {} + 2>/dev/null || true
-ls -la target/ 2>/dev/null || echo "target not exist"
-# 使用 UUID 确保临时目录名唯一
-TIMESTAMP_DMG=$(uuidgen 2>/dev/null || echo "dmg-$(date +%s%N)-${RANDOM}-$$")
-TIMESTAMP_APP=$(uuidgen 2>/dev/null || echo "app-$(date +%s%N)-${RANDOM}-$$")
-TIMESTAMP_EXE=$(uuidgen 2>/dev/null || echo "exe-$(date +%s%N)-${RANDOM}-$$")
-TIMESTAMP_MSI=$(uuidgen 2>/dev/null || echo "msi-$(date +%s%N)-${RANDOM}-$$")
+rm -rf "target/tmp-app-${OS}-$$"
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  # macOS: 先生成 app-image，再用 app-image 生成 DMG（避免 jpackage 内部临时目录冲突）
-  echo "=== 步骤 1/2: 生成 app-image ==="
-  
-  # 准备输入目录 - 包含 JAR 文件
-  JAR_SOURCE="/Users/scorpion/workspace/codeworkspace/yi-mark/target/yi-mark-1.0.0.jar"
-  INPUT_DIR="/Users/scorpion/workspace/codeworkspace/yi-mark/tmp-input"
-  mkdir -p "$INPUT_DIR"
-  cp "$JAR_SOURCE" "$INPUT_DIR/"
-  
-  # 输出目录 - 用于存放生成的 app-image
-  OUTPUT_DIR="/Users/scorpion/workspace/codeworkspace/yi-mark/target/dist"
-  mkdir -p "$OUTPUT_DIR"
-  
-  # 使用 --input 和 --dest 避免路径冲突
-  jpackage --type app-image \
-    --name "${APP_NAME}" \
-    --app-version "${VERSION}" \
+if [[ "$OS" == "mac" ]]; then
+  echo "=== 生成 DMG ==="
+  DMG_PATH="target/dist/${APP_NAME}-${VERSION}.dmg"
+  hdiutil create \
+    -volname "$APP_NAME" \
+    -srcfolder "target/dist/${APP_NAME}.app" \
+    -ov \
+    -format UDZO \
+    "$DMG_PATH"
+  hdiutil verify "$DMG_PATH"
+elif [[ "$OS" == "win" ]]; then
+  echo "=== 生成 Windows EXE ==="
+  jpackage \
+    --type exe \
+    --app-image "target/dist/${APP_NAME}" \
+    --name "$APP_NAME" \
+    --app-version "$VERSION" \
     --description "Yi Mark - 证件/文档水印保护工具" \
     --vendor "Yi Mark Team" \
     --copyright "2024 Yi Mark Team" \
-    --runtime-image target/runtime \
-    --input "$INPUT_DIR" \
-    --main-jar yi-mark-1.0.0.jar \
-    --dest "$OUTPUT_DIR" \
-    --java-options "-Xmx512m -cp /Applications/yi-mark.app/Contents/app/pdfbox-3.0.3.jar:/Applications/yi-mark.app/Contents/app/pdfbox-io-3.0.3.jar:/Applications/yi-mark.app/Contents/app/fontbox-3.0.3.jar:/Applications/yi-mark.app/Contents/app/commons-logging-1.3.3.jar -Djavafx.verbose=true" \
-    --resource-dir target/applib \
-    --mac-package-identifier "com.yimark.app" \
-    --mac-package-name "${APP_NAME}" \
-    --temp "target/tmp-app-${TIMESTAMP_APP}" \
-    --verbose
-
-  # 清理临时目录，等待文件系统释放
-  rm -rf "target/tmp-app-${TIMESTAMP_APP}"
-
-  # 在生成 app-image 之前清理 mods 目录，避免 FileAlreadyExistsException
-  rm -rf "/Users/scorpion/workspace/codeworkspace/yi-mark/target/dist/yi-mark.app/Contents/app/mods" 2>/dev/null || true
-  
-  echo "=== 步骤 1/2: 生成 app-image ==="
-  
-  # 在生成 app-image 之前清理 mods 目录，避免 FileAlreadyExistsException
-  rm -rf "/Users/scorpion/workspace/codeworkspace/yi-mark/target/dist/yi-mark.app/Contents/app/mods" 2>/dev/null || true
-  sleep 1
-
-  echo "=== 步骤 2/2: 从 app-image 生成 DMG ==="
-  jpackage --type dmg \
-    --name "${APP_NAME}" \
-    --app-version "${VERSION}" \
-    --description "Yi Mark - 证件/文档水印保护工具" \
-    --vendor "Yi Mark Team" \
-    --copyright "2024 Yi Mark Team" \
-    --app-image "target/dist/${APP_NAME}.app" \
     --dest target/dist \
-    --mac-package-identifier "com.yimark.app" \
-    --mac-package-name "${APP_NAME}" \
-    --icon src/main/resources/yi-mark.icns \
-    --temp "target/tmp-dmg-${TIMESTAMP_DMG}" \
-    --verbose
+    --java-options "-Xmx512m --add-modules jdk.crypto.ec" \
+    --win-dir-chooser \
+    --win-shortcut \
+    --win-menu \
+    --temp "target/tmp-exe-${OS}-$$" \
+    "${ICON_ARGS[@]}"
+  rm -rf "target/tmp-exe-${OS}-$$"
 
-  echo "✅ macOS 包已生成到 target/dist/"
-else
-  # Windows: 生成 .exe 和 .msi
-  TIMESTAMP_EXE=$(date +%s%N)${RANDOM}
-  TIMESTAMP_MSI=$(date +%s%N)${RANDOM}
-  FULL_MODULE_PATH="target/runtime${PATH_SEP}target/runtime/mods"
-  
-jpackage --type exe \
-    --name "${APP_NAME}" \
-    --app-version "${VERSION}" \
+  echo "=== 生成 Windows MSI ==="
+  jpackage \
+    --type msi \
+    --app-image "target/dist/${APP_NAME}" \
+    --name "$APP_NAME" \
+    --app-version "$VERSION" \
     --description "Yi Mark - 证件/文档水印保护工具" \
     --vendor "Yi Mark Team" \
     --copyright "2024 Yi Mark Team" \
-    --runtime-image target/runtime \
-    --input "$INPUT_DIR" \
-    --main-jar yi-mark-1.0.0.jar \
-    --dest "$INPUT_DIR" \
-    --java-options "-Xmx512m --add-modules=org.apache.pdfbox,org.apache.pdfbox.io,org.apache.fontbox,org.apache.commons.logging --add-reads=yi.mark=org.apache.pdfbox,org.apache.pdfbox.io,org.apache.fontbox,org.apache.commons.logging -Djavafx.verbose=true" \
-    --resource-dir target/applib \
-    --icon src/main/resources/yi-mark.icns \
-    --temp "target/tmp-exe-${TIMESTAMP_EXE}" \
-    --verbose
-
-  jpackage --type msi \
-    --name "${APP_NAME}" \
-    --app-version "${VERSION}" \
-    --description "Yi Mark - 证件/文档水印保护工具" \
-    --vendor "Yi Mark Team" \
-    --copyright "2024 Yi Mark Team" \
-    --runtime-image target/runtime \
-    --module-path "${FULL_MODULE_PATH}" \
-    --module "${MODULE}/${MAIN_CLASS}" \
     --dest target/dist \
-    --java-options "-Xmx512m -cp lib/pdfbox-${PDFBOX_VERSION}.jar;lib/pdfbox-io-${PDFBOX_VERSION}.jar;lib/fontbox-${PDFBOX_VERSION}.jar;lib/commons-logging-1.3.3.jar" \
-    --resource-dir target/runtime/lib \
-    --temp "target/tmp-msi-${TIMESTAMP_MSI}" \
-    --verbose
-
-  echo "✅ Windows 包已生成到 target/dist/"
+    --java-options "-Xmx512m --add-modules jdk.crypto.ec" \
+    --win-dir-chooser \
+    --win-shortcut \
+    --win-menu \
+    --temp "target/tmp-msi-${OS}-$$" \
+    "${ICON_ARGS[@]}"
+  rm -rf "target/tmp-msi-${OS}-$$"
 fi
 
 echo "=== 完成 ==="

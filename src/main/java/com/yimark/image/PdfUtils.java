@@ -15,8 +15,10 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Utility for reading/writing PDF files via PDFBox. */
+ /** Utility for reading/writing PDF files via PDFBox. */
 public final class PdfUtils {
+
+    public static final int RENDER_DPI = 300;
 
     private PdfUtils() {}
 
@@ -26,7 +28,7 @@ public final class PdfUtils {
         try (PDDocument document = Loader.loadPDF(pdfPath.toFile())) {
             PDFRenderer renderer = new PDFRenderer(document);
             for (int i = 0; i < document.getNumberOfPages(); i++) {
-                images.add(renderer.renderImageWithDPI(i, 300));
+                images.add(renderer.renderImageWithDPI(i, RENDER_DPI));
             }
         }
         return images;
@@ -36,7 +38,7 @@ public final class PdfUtils {
     public static BufferedImage readFirstPage(Path pdfPath) throws IOException {
         try (PDDocument document = Loader.loadPDF(pdfPath.toFile())) {
             PDFRenderer renderer = new PDFRenderer(document);
-            return renderer.renderImageWithDPI(0, 300);
+            return renderer.renderImageWithDPI(0, RENDER_DPI);
         }
     }
 
@@ -46,12 +48,14 @@ public final class PdfUtils {
             for (BufferedImage image : images) {
                 int width = image.getWidth();
                 int height = image.getHeight();
-                PDPage page = new PDPage(new PDRectangle(width, height));
+                float pageWidth = width * 72f / RENDER_DPI;
+                float pageHeight = height * 72f / RENDER_DPI;
+                PDPage page = new PDPage(new PDRectangle(pageWidth, pageHeight));
                 document.addPage(page);
                 PDPageContentStream contentStream =
                         new PDPageContentStream(document, page);
                 PDImageXObject pdImage = LosslessFactory.createFromImage(document, image);
-                contentStream.drawImage(pdImage, 0, 0, width, height);
+                contentStream.drawImage(pdImage, 0, 0, pageWidth, pageHeight);
                 contentStream.close();
             }
             document.save(outputPath.toFile());

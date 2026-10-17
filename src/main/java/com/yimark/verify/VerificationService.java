@@ -2,6 +2,7 @@ package com.yimark.verify;
 
 import com.yimark.crypto.Digests;
 import com.yimark.crypto.Ed25519Keys;
+import com.yimark.image.PdfUtils;
 import com.yimark.manifest.Manifest;
 import com.yimark.protect.ProtectionService;
 import com.yimark.trust.TrustStore;
@@ -66,8 +67,17 @@ public final class VerificationService {
         Extraction extraction = null;
         String extractionNote = null;
         try {
-            BufferedImage image = javax.imageio.ImageIO.read(imagePath.toFile());
-            extraction = DctWatermark.extract(image);
+            BufferedImage image;
+            if (imagePath.getFileName().toString().toLowerCase().endsWith(".pdf")) {
+                image = PdfUtils.readFirstPage(imagePath);
+            } else {
+                image = javax.imageio.ImageIO.read(imagePath.toFile());
+            }
+            if (image == null) {
+                extractionNote = "image unreadable";
+            } else {
+                extraction = DctWatermark.extract(image);
+            }
         } catch (IOException e) {
             extractionNote = "image unreadable: " + e.getMessage();
         }

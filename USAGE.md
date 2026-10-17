@@ -16,7 +16,9 @@ Yi Mark 是一款跨平台的证件/文档水印保护工具，支持 macOS、Wi
 |------|--------|
 | macOS | `yi-mark-1.0.0.dmg` → 拖入 Applications |
 | Windows | `yi-mark-1.0.0.exe` 或 `yi-mark-1.0.0.msi` |
-| Linux | 使用 JAR 包运行（见下文） |
+| Linux | app-image 目录或 JAR 包运行（见下文） |
+
+安装包可从 GitHub Release 下载；CI 工作流也会在 `main` 分支 push、PR 和手动触发时生成打包 artifacts。
 
 ### 方式二：开发环境运行
 
@@ -63,6 +65,7 @@ java --module-path /path/to/javafx-sdk-17/lib \
 | **用途** | 文本 | 仅供指定用途使用 | 水印中显示的使用限制说明 |
 | **透明度** | 0.08–0.60 | 0.30 | 可见水印透明度，越大越明显 |
 | **大小** | 0.01×–3.0× | 1.0× | 水印字体大小倍率 |
+| **行间距** | 1.0×–8.0× | 2.4× | 可见水印行距倍率，值越大行与行之间越稀疏 |
 | **角度°** | –60° 到 60° | –24° | 水印倾斜角度，负值向右上倾斜 |
 | **错位** | –1.0 到 1.0 | 0.5 | **新增**：水印行间错位模式（见下文详解） |
 | **水印颜色** | **新增** | 灰色 (128,128,128) | **新增**：水印颜色选择器，默认灰色，在深/浅背景下均清晰 |
@@ -89,6 +92,18 @@ java --module-path /path/to/javafx-sdk-17/lib \
 | **< 0（如 –0.5、–1.0）** | **随机错位** | 每行独立随机偏移 [0, 列间距) | **推荐**：最大程度提高去水印难度，破坏规律性 |
 
 > **建议**：日常使用保持默认 0.5；对抗去水印工具时，设为负值（如 –0.5 或 –1.0）启用随机错位。
+
+### 1.5 行间距（新增）
+
+「行间距」滑块控制可见水印相邻行之间的垂直距离：
+
+| 值 | 效果 | 适用场景 |
+|----|------|----------|
+| **1.0×** | 行距最紧凑，约为字体大小 1 倍 | 小图或需要更高水印密度 |
+| **2.4×（默认）** | 行距清晰、覆盖均匀 | 通用证件/文档场景 |
+| **8.0×** | 行距最稀疏，水印更分散 | 大尺寸文档或需要降低视觉密度 |
+
+> **提示**：行间距只影响可见水印排版，不影响隐形水印强度、签名清单或验证结果。
 
 ### 2. 马赛克涂抹工具（新增）
 
@@ -152,7 +167,7 @@ java --module-path /path/to/javafx-sdk-17/lib \
 
 **输出产物**：
 - `xxx.png` 或 `xxx.pdf` —— 加了可见+隐形水印+四角几何标记的文件
-- `xxx.yimark.json` —— 签名清单（含 documentId、哈希、签名、公钥等）
+- `xxx.securedoc.json` —— 签名清单（含 documentId、哈希、签名、公钥等）
 
 > **注意**：PDF 输入时仅处理第一页，输出为单页 PDF。
 
@@ -163,7 +178,7 @@ java --module-path /path/to/javafx-sdk-17/lib \
 操作：
 1. 先生成一次保护文件
 2. 点「信任当前签发方」
-3. 系统将本机公钥写入 `~/.yimark/trusted-issuers.json`
+3. 系统将本机公钥写入 `~/.securedoc/trusted-issuers.json`
 
 > 信任库是**本地**的，不同电脑需各自信任。收到他人文件时，需导入对方公钥（见进阶用法）。
 
@@ -192,14 +207,14 @@ java --module-path /path/to/javafx-sdk-17/lib \
 
 ### 导入他人的公钥（跨机器验证）
 
-收到别人发来的 `xxx.yimark.json` 和 `xxx.png`，想在自己电脑上验证：
+收到别人发来的 `xxx.securedoc.json` 和 `xxx.png`，想在自己电脑上验证：
 
 ```bash
 # 1. 从清单提取公钥（Base64）
-cat xxx.yimark.json | grep publicKeyBase64
+cat xxx.securedoc.json | grep publicKeyBase64
 
 # 2. 在自己机器上导入（需手动编辑 trusted-issuers.json）
-# 文件位置：~/.yimark/trusted-issuers.json
+# 文件位置：~/.securedoc/trusted-issuers.json
 # 格式参考现有条目，添加：
 {
   "fingerprint": "sha256:...",
@@ -216,10 +231,24 @@ cat xxx.yimark.json | grep publicKeyBase64
 目前无 CLI 批量模式，需通过代码调用 `ProtectionService`。示例：
 
 ```java
-ProtectionService svc = new ProtectionService(Paths.get(System.getProperty("user.home"), ".yimark"));
+ProtectionService svc = new ProtectionService(Paths.get(System.getProperty("user.home"), ".securedoc"));
 for (Path src : sources) {
     Path out = src.resolveSibling(src.getFileName() + "-watermarked.png");
-    svc.protect(src, out, "MyOrg", "Internal Use", 0.2, 24, -24.0, 0.5);
+    svc.protect(
+        src,
+        out,
+        "MyOrg",
+        "Internal Use",
+        0.30,
+        24,
+        -24.0,
+        0.5,
+        VisibleWatermark.DEFAULT_LINE_SPACING_RATIO,
+        false,
+        10,
+        List.of(),
+        VisibleWatermark.DEFAULT_WATERMARK_COLOR
+    );
 }
 ```
 
@@ -244,13 +273,13 @@ for (Path src : sources) {
 **A**: 同步搜索需遍历离散角度/缩放网格并重采样，单张图可能耗时数秒到十几秒。这是已知限制。
 
 ### Q: 如何备份密钥？
-**A**: 备份整个 `~/.yimark/` 目录：
+**A**: 备份整个 `~/.securedoc/` 目录：
 - `ed25519.pk8` / `ed25519.pub` —— 签名密钥对
 - `binding.key` —— HMAC 绑定密钥（32 字节，**权限 0600**）
 - `trusted-issuers.json` —— 信任库
 
 ### Q: 换电脑了怎么迁移？
-**A**: 把 `~/.yimark/` 整个目录复制到新电脑同一路径即可。
+**A**: 把 `~/.securedoc/` 整个目录复制到新电脑同一路径即可。
 
 ---
 
@@ -266,7 +295,7 @@ for (Path src : sources) {
 ## 文件结构
 
 ```
-~/.yimark/
+~/.securedoc/
 ├── ed25519.pk8          # Ed25519 私钥 (PKCS#8)
 ├── ed25519.pub          # Ed25519 公钥 (X.509)
 ├── binding.key          # 32 字节 HMAC 密钥 (chmod 600)
@@ -275,8 +304,8 @@ for (Path src : sources) {
 
 输出文件命名约定：
 ```
-document.png           -> document.png + document.yimark.json
-report.pdf             -> report.pdf + report.yimark.json
+document.png           -> document.png + document.securedoc.json
+report.pdf             -> report.pdf + report.securedoc.json
 ```
 
 ---

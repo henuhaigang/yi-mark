@@ -19,11 +19,12 @@ public final class VisibleWatermark {
      *                     - 0.5 = half-step stagger (default, original behavior)
      *                     - 1.0 = full-step stagger
      *                     - negative = random stagger per row (each row gets independent random offset in [0, colStep))
+     * @param lineSpacingRatio vertical row step as a multiple of font size; default 2.4
      * @param color        watermark color (default: gray for better visibility on both light/dark backgrounds)
      */
     public static BufferedImage apply(BufferedImage source, String issuer, String purpose,
                                       String identity, double opacity, int fontSize, double degrees,
-                                      double staggerRatio, Color color) {
+                                      double staggerRatio, double lineSpacingRatio, Color color) {
         int width = source.getWidth();
         int height = source.getHeight();
         BufferedImage out = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
@@ -51,7 +52,7 @@ public final class VisibleWatermark {
         // 用 FontMetrics 测量真实文本宽度，避免长文本重叠
         java.awt.font.FontRenderContext frc = graphics.getFontRenderContext();
         int textWidth = (int) Math.ceil(font.getStringBounds(text, frc).getWidth());
-        int rowStep = Math.max(24, (int) Math.round(fontSize * 2.4));
+        int rowStep = rowStepFor(fontSize, lineSpacingRatio);
         int colStep = Math.max(textWidth + 24, (int) Math.round(fontSize * 9.0)); // 文本宽 + 24px 内边距
 
         Random random = staggerRatio < 0 ? new Random() : null;
@@ -82,9 +83,18 @@ public final class VisibleWatermark {
     /** Default stagger ratio (half-step stagger for backward compatibility). */
     public static final double DEFAULT_STAGGER_RATIO = 0.5;
 
+    /** Default vertical row step as a multiple of font size. */
+    public static final double DEFAULT_LINE_SPACING_RATIO = 2.4;
+
     /** Font size used by the GUI at a given image width, before the user's multiplier. */
     public static int baseFontSize(int imageWidth) {
         return Math.max(18, imageWidth / 28);
+    }
+
+    /** Vertical row step for a given font size and continuous line-spacing multiplier. */
+    public static int rowStepFor(int fontSize, double lineSpacingRatio) {
+        double ratio = Double.isFinite(lineSpacingRatio) ? Math.max(1.0, lineSpacingRatio) : DEFAULT_LINE_SPACING_RATIO;
+        return Math.max(24, (int) Math.round(fontSize * ratio));
     }
 
     private VisibleWatermark() {}
