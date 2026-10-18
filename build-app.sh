@@ -127,16 +127,6 @@ elif [[ "$OS" == "linux" && -f "src/main/resources/yi-mark.png" ]]; then
   ICON_ARGS+=(--icon "src/main/resources/yi-mark.png")
 fi
 
-PLATFORM_ARGS=()
-if [[ "$OS" == "mac" ]]; then
-  PLATFORM_ARGS+=(
-    --mac-package-identifier "com.yimark.app"
-    --mac-package-name "$APP_NAME"
-  )
-elif [[ "$OS" == "linux" ]]; then
-  PLATFORM_ARGS+=(--linux-app-category "Utility")
-fi
-
 jpackage \
   --type app-image \
   --name "$APP_NAME" \
@@ -150,8 +140,7 @@ jpackage \
   --dest target/dist \
   --java-options "-Xmx512m --add-modules jdk.crypto.ec" \
   --temp "target/tmp-app-${OS}-$$" \
-  "${ICON_ARGS[@]}" \
-  "${PLATFORM_ARGS[@]}"
+  "${ICON_ARGS[@]}"
 
 rm -rf "target/tmp-app-${OS}-$$"
 
@@ -172,16 +161,12 @@ elif [[ "$OS" == "win" ]]; then
     --app-image "target/dist/${APP_NAME}" \
     --name "$APP_NAME" \
     --app-version "$VERSION" \
-    --description "Yi Mark - 证件/文档水印保护工具" \
     --vendor "Yi Mark Team" \
-    --copyright "2024 Yi Mark Team" \
     --dest target/dist \
-    --java-options "-Xmx512m --add-modules jdk.crypto.ec" \
     --win-dir-chooser \
     --win-shortcut \
     --win-menu \
-    --temp "target/tmp-exe-${OS}-$$" \
-    "${ICON_ARGS[@]}"
+    --temp "target/tmp-exe-${OS}-$$"
   rm -rf "target/tmp-exe-${OS}-$$"
 
   echo "=== 生成 Windows MSI ==="
@@ -190,16 +175,12 @@ elif [[ "$OS" == "win" ]]; then
     --app-image "target/dist/${APP_NAME}" \
     --name "$APP_NAME" \
     --app-version "$VERSION" \
-    --description "Yi Mark - 证件/文档水印保护工具" \
     --vendor "Yi Mark Team" \
-    --copyright "2024 Yi Mark Team" \
     --dest target/dist \
-    --java-options "-Xmx512m --add-modules jdk.crypto.ec" \
     --win-dir-chooser \
     --win-shortcut \
     --win-menu \
-    --temp "target/tmp-msi-${OS}-$$" \
-    "${ICON_ARGS[@]}"
+    --temp "target/tmp-msi-${OS}-$$"
   rm -rf "target/tmp-msi-${OS}-$$"
 fi
 
