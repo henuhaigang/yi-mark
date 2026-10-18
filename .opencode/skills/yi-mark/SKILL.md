@@ -41,6 +41,8 @@ Expected test count: 32.
   - app bundle: `target/dist/yi-mark.app`
   - DMG: `target/dist/yi-mark-<version>.dmg`
   - DMG should be created with `hdiutil create`, then verified with `hdiutil verify`
+  - DMG should include an `Applications` shortcut
+  - unsigned/ad-hoc builds may be blocked by macOS Gatekeeper; formal distribution needs Developer ID signing + Apple notarization
   - app icon source: `src/main/resources/yi-mark.icns`
 - Windows:
   - app-image: `target/dist/yi-mark/`

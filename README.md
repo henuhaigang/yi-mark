@@ -41,8 +41,10 @@ mvn clean javafx:run
 ./build-app.sh all
 ```
 
-> 打包脚本会构建 JAR、收集运行时依赖、创建 jlink 运行时、生成 app-image，并在 macOS 上通过 `hdiutil` 生成 DMG。
+> 打包脚本会构建 JAR、收集运行时依赖、创建 jlink 运行时、生成 app-image，并在 macOS 上通过 `hdiutil` 生成带 `Applications` 快捷方式的 DMG。
 > GitHub Actions 会在 `main` 分支 push、PR 和手动触发时运行测试与三平台打包；`v*` tag 会创建 GitHub Release。
+>
+> macOS 正式分发需要 Developer ID 签名与 Apple 公证；未签名/未公证的 DMG 可能被 Gatekeeper 提示“无法验证开发者”。本地/CI 可通过 `MAC_SIGNING_IDENTITY`、`APPLE_ID`、`APPLE_APP_PASSWORD`、`APPLE_TEAM_ID` 启用签名与公证。
 
 ### CI / Release
 

@@ -145,15 +145,38 @@ jpackage \
 rm -rf "target/tmp-app-${OS}-$$"
 
 if [[ "$OS" == "mac" ]]; then
+  echo "=== 签名 / 公证（可选） ==="
+  if [[ -n "${MAC_SIGNING_IDENTITY:-}" ]]; then
+    codesign --force --deep --options runtime --sign "$MAC_SIGNING_IDENTITY" "target/dist/${APP_NAME}.app"
+  fi
+
+  if [[ -n "${APPLE_ID:-}" && -n "${APPLE_APP_PASSWORD:-}" && -n "${APPLE_TEAM_ID:-}" ]]; then
+    NOTARIZE_ZIP="target/dist/${APP_NAME}-${VERSION}-notarize.zip"
+    (cd "target/dist" && zip -qr "$(basename "$NOTARIZE_ZIP")" "${APP_NAME}.app")
+    xcrun notarytool submit "$NOTARIZE_ZIP" \
+      --apple-id "$APPLE_ID" \
+      --password "$APPLE_APP_PASSWORD" \
+      --team-id "$APPLE_TEAM_ID" \
+      --wait
+    xcrun stapler staple "target/dist/${APP_NAME}.app"
+    rm -f "$NOTARIZE_ZIP"
+  fi
+
   echo "=== 生成 DMG ==="
+  DMG_SRC="target/dmg-src"
   DMG_PATH="target/dist/${APP_NAME}-${VERSION}.dmg"
+  rm -rf "$DMG_SRC"
+  mkdir -p "$DMG_SRC"
+  ditto "target/dist/${APP_NAME}.app" "${DMG_SRC}/${APP_NAME}.app"
+  ln -s /Applications "${DMG_SRC}/Applications"
   hdiutil create \
     -volname "$APP_NAME" \
-    -srcfolder "target/dist/${APP_NAME}.app" \
+    -srcfolder "$DMG_SRC" \
     -ov \
     -format UDZO \
     "$DMG_PATH"
   hdiutil verify "$DMG_PATH"
+  rm -rf "$DMG_SRC"
 elif [[ "$OS" == "win" ]]; then
   echo "=== 生成 Windows EXE ==="
   jpackage \

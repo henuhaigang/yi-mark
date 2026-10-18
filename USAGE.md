@@ -20,6 +20,8 @@ Yi Mark 是一款跨平台的证件/文档水印保护工具，支持 macOS、Wi
 
 安装包可从 GitHub Release 下载；CI 工作流也会在 `main` 分支 push、PR 和手动触发时生成打包 artifacts。
 
+> macOS 如果提示“Apple 无法验证开发者”，说明当前包未使用 Developer ID 签名/公证。确认来源可信后，可通过“系统设置 > 隐私与安全性 > 打开”放行，或临时执行 `xattr -dr com.apple.quarantine /Applications/yi-mark.app`。正式分发应使用 Developer ID 签名并完成 Apple 公证。
+
 ### 方式二：开发环境运行
 
 ```bash

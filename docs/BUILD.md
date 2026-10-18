@@ -36,7 +36,14 @@ Produces:
 - `target/dist/yi-mark.app`
 - `target/dist/yi-mark-<version>.dmg`
 
-The DMG is generated with `hdiutil create` and verified with `hdiutil verify`.
+The DMG is generated with `hdiutil create` and verified with `hdiutil verify`. It contains `yi-mark.app` and an `Applications` shortcut.
+
+Optional macOS signing/notarization:
+
+- `MAC_SIGNING_IDENTITY`: Developer ID Application identity used by `codesign`
+- `APPLE_ID`, `APPLE_APP_PASSWORD`, `APPLE_TEAM_ID`: submit the app with `xcrun notarytool`, then staple the ticket
+
+Without signing/notarization, the app is ad-hoc signed and macOS Gatekeeper may block first launch for downloaded DMGs.
 
 ### Windows
 
@@ -61,6 +68,7 @@ MSI generation requires WiX Toolset. The GitHub Actions workflow installs WiX be
 Produces:
 
 - `target/dist/yi-mark/`
+- `target/dist/yi-mark-<version>-linux.tar.gz`
 
 ### Auto
 

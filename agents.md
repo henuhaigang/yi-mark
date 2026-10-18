@@ -88,7 +88,7 @@ mvn test   # 32 tests (DctWatermark 9, ReedSolomon 6, TrustStore 7, Verification
 2. Rotation/scale search uses discrete candidate grid (misses off-grid angles)
 3. Watermark extraction result not cross-checked against manifest fields
 4. Private keys stored in filesystem, not Keychain / Credential Manager
-5. Windows code signing / macOS notarization not configured
+5. Windows code signing / macOS notarization not configured by default; `build-app.sh mac` supports optional `MAC_SIGNING_IDENTITY` and Apple notarization env vars
 6. Mosaic brush preview flickering fixed (block size slider now only updates overlay)
 7. Windows app icon requires `src/main/resources/yi-mark.ico`; if absent, `build-app.sh` omits `--icon` for Windows
 8. macOS icon cache may briefly show the old app icon after replacing `/Applications/yi-mark.app`
