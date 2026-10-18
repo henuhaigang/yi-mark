@@ -118,4 +118,4 @@ Jobs:
 - Linux app-image
 - `SHA256SUMS.txt`
 
-Use a tag that matches the `pom.xml` version, for example `v1.0.0` for `1.0.0`.
+Use a tag that matches the `pom.xml` version, for example `v1.0.9` for `1.0.9`.

@@ -51,7 +51,7 @@ mvn clean javafx:run
 | `.github/workflows/ci.yml` | `main` push、PR、手动触发 | 测试报告 + macOS/Windows/Linux 打包 artifacts |
 | `.github/workflows/release.yml` | `v*` tag | GitHub Release，包含 DMG、EXE、MSI、Linux app-image 与 SHA256 校验文件 |
 
-发布 tag 时建议 tag 版本与 `pom.xml` 版本一致，例如 `pom.xml` 为 `1.0.0` 时推送 `v1.0.0`。
+发布 tag 时建议 tag 版本与 `pom.xml` 版本一致，例如 `pom.xml` 为 `1.0.9` 时推送 `v1.0.9`。
 
 ---
 

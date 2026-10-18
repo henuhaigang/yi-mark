@@ -59,7 +59,7 @@ if [[ "$COMMAND" != "$OS" ]]; then
 fi
 
 VERSION="${VERSION:-$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout | tr -d '[:space:]')}"
-VERSION="${VERSION:-1.0.0}"
+VERSION="${VERSION:-1.0.9}"
 MAIN_JAR="yi-mark-${VERSION}.jar"
 
 echo "=== yi-mark packaging ==="

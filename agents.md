@@ -44,10 +44,10 @@ com.yimark
 mvn clean javafx:run
 
 # Native packaging (macOS)
-./build-app.sh mac   # produces target/dist/yi-mark.app + yi-mark-1.0.0.dmg
+./build-app.sh mac   # produces target/dist/yi-mark.app + yi-mark-1.0.9.dmg
 
 # Native packaging (Windows) - run on Windows
-./build-app.sh win   # produces target/dist/yi-mark + yi-mark-1.0.0.exe + yi-mark-1.0.0.msi
+./build-app.sh win   # produces target/dist/yi-mark + yi-mark-1.0.9.exe + yi-mark-1.0.9.msi
 
 # Native packaging (Linux)
 ./build-app.sh linux # produces target/dist/yi-mark app-image
