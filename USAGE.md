@@ -16,7 +16,7 @@ Yi Mark 是一款跨平台的证件/文档水印保护工具，支持 macOS、Wi
 |------|--------|
 | macOS | `yi-mark-1.0.9.dmg` → 拖入 Applications |
 | Windows | `yi-mark-1.0.9.exe` 或 `yi-mark-1.0.9.msi` |
-| Linux | app-image 目录或 JAR 包运行（见下文） |
+| Linux | `yi-mark-1.0.9-linux.tar.gz` 或 JAR 包运行（见下文） |
 
 安装包可从 GitHub Release 下载；CI 工作流也会在 `main` 分支 push、PR 和手动触发时生成打包 artifacts。
 

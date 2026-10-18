@@ -49,6 +49,7 @@ Expected test count: 32.
   - Windows icon should be `src/main/resources/yi-mark.ico` if present
 - Linux:
   - app-image: `target/dist/yi-mark/`
+  - release archive: `target/dist/yi-mark-<version>-linux.tar.gz`
 
 ## GitHub Actions
 

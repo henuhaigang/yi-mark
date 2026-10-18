@@ -34,7 +34,7 @@ mvn clean javafx:run
 # Windows 生成 app-image + .exe + .msi（需在 Windows 上运行，MSI 需要 WiX Toolset）
 ./build-app.sh win
 
-# Linux 生成 app-image
+# Linux 生成 app-image + tar.gz
 ./build-app.sh linux
 
 # 按当前操作系统自动选择
@@ -49,7 +49,7 @@ mvn clean javafx:run
 | 工作流 | 触发条件 | 产物 |
 |--------|----------|------|
 | `.github/workflows/ci.yml` | `main` push、PR、手动触发 | 测试报告 + macOS/Windows/Linux 打包 artifacts |
-| `.github/workflows/release.yml` | `v*` tag | GitHub Release，包含 DMG、EXE、MSI、Linux app-image 与 SHA256 校验文件 |
+| `.github/workflows/release.yml` | `v*` tag | GitHub Release，包含 DMG、EXE、MSI、Linux tar.gz 与 SHA256 校验文件 |
 
 发布 tag 时建议 tag 版本与 `pom.xml` 版本一致，例如 `pom.xml` 为 `1.0.9` 时推送 `v1.0.9`。
 

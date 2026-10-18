@@ -182,6 +182,9 @@ elif [[ "$OS" == "win" ]]; then
     --win-menu \
     --temp "target/tmp-msi-${OS}-$$"
   rm -rf "target/tmp-msi-${OS}-$$"
+elif [[ "$OS" == "linux" ]]; then
+  echo "=== 生成 Linux tar.gz ==="
+  tar -czf "target/dist/${APP_NAME}-${VERSION}-linux.tar.gz" -C "target/dist" "$APP_NAME"
 fi
 
 echo "=== 完成 ==="

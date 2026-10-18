@@ -57,7 +57,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: yi-mark-macos
-          path: target/dist/*
+          path: target/dist/*.dmg
           if-no-files-found: error
 
   package-windows:
@@ -91,7 +91,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: yi-mark-windows
-          path: target/dist/*
+          path: |
+            target/dist/*.exe
+            target/dist/*.msi
           if-no-files-found: error
 
   package-linux:
@@ -115,5 +117,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: yi-mark-linux
-          path: target/dist/*
+          path: target/dist/*.tar.gz
           if-no-files-found: error

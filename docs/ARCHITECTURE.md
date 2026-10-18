@@ -49,7 +49,7 @@ com.yimark
 ## CI / Packaging
 
 - CI runs unit tests on Ubuntu, macOS, and Windows.
-- CI packages macOS `.app` + `.dmg`, Windows app-image + `.exe` + `.msi`, and Linux app-image.
+- CI packages macOS `.app` + `.dmg`, Windows app-image + `.exe` + `.msi`, and Linux app-image + tar.gz.
 - Release workflow publishes artifacts and `SHA256SUMS.txt` on `v*` tags.
 - macOS DMG generation uses `hdiutil create` to avoid `jpackage --type dmg` attach failures.
 

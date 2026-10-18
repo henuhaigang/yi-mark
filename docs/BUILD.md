@@ -82,7 +82,7 @@ Builds for the current host operating system.
 6. Generates platform installers:
    - macOS: DMG via `hdiutil`
    - Windows: EXE and MSI via `jpackage`
-   - Linux: app-image only
+   - Linux: app-image + tar.gz
 
 ## Version Management
 
@@ -107,7 +107,7 @@ Jobs:
 - `test`: `mvn test` on Ubuntu, macOS, and Windows
 - `package-macos`: builds `.app` + `.dmg`
 - `package-windows`: builds app-image + `.exe` + `.msi`
-- `package-linux`: builds app-image
+- `package-linux`: builds app-image + tar.gz
 
 ### Release
 
@@ -115,7 +115,7 @@ Jobs:
 
 - macOS DMG
 - Windows EXE/MSI
-- Linux app-image
+- Linux tar.gz
 - `SHA256SUMS.txt`
 
 Use a tag that matches the `pom.xml` version, for example `v1.0.9` for `1.0.9`.

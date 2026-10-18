@@ -4,7 +4,7 @@
 - **Name**: yi-mark (formerly SecureDoc-Java)
 - **Type**: Cross-platform document watermark protection tool (Java 17 + JavaFX)
 - **Core features**: Visible tiled watermark + invisible DCT frequency-domain watermark + Ed25519 signed manifest
-- **Platforms**: macOS (app + dmg), Windows (app-image + exe + msi), Linux (app-image)
+- **Platforms**: macOS (app + dmg), Windows (app-image + exe + msi), Linux (app-image + tar.gz)
 - **Language**: Java 17, Maven, JavaFX 17.0.6
 
 ## Architecture
@@ -50,7 +50,7 @@ mvn clean javafx:run
 ./build-app.sh win   # produces target/dist/yi-mark + yi-mark-1.0.9.exe + yi-mark-1.0.9.msi
 
 # Native packaging (Linux)
-./build-app.sh linux # produces target/dist/yi-mark app-image
+./build-app.sh linux # produces target/dist/yi-mark app-image + yi-mark-1.0.9-linux.tar.gz
 
 # Tests
 mvn test   # 32 tests (DctWatermark 9, ReedSolomon 6, TrustStore 7, VerificationService 7, VisibleWatermark 2, MainProvider 1)
