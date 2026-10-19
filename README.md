@@ -45,6 +45,8 @@ mvn clean javafx:run
 > GitHub Actions 会在 `main` 分支 push、PR 和手动触发时运行测试与三平台打包；`v*` tag 会创建 GitHub Release。
 >
 > macOS 正式分发需要 Developer ID 签名与 Apple 公证；未签名/未公证的 DMG 可能被 Gatekeeper 提示“无法验证开发者”。本地/CI 可通过 `MAC_SIGNING_IDENTITY`、`APPLE_ID`、`APPLE_APP_PASSWORD`、`APPLE_TEAM_ID` 启用签名与公证。
+>
+> 没有 Apple 开发者账号时如何安装未签名包，详见 `USAGE.md` 的「macOS：没有 Apple 开发者账号如何安装（未签名包）」章节。
 
 ### CI / Release
 

@@ -20,7 +20,103 @@ Yi Mark 是一款跨平台的证件/文档水印保护工具，支持 macOS、Wi
 
 安装包可从 GitHub Release 下载；CI 工作流也会在 `main` 分支 push、PR 和手动触发时生成打包 artifacts。
 
-> macOS 如果提示“Apple 无法验证开发者”，说明当前包未使用 Developer ID 签名/公证。确认来源可信后，可通过“系统设置 > 隐私与安全性 > 打开”放行，或临时执行 `xattr -dr com.apple.quarantine /Applications/yi-mark.app`。正式分发应使用 Developer ID 签名并完成 Apple 公证。
+> macOS 如果提示“Apple 无法验证开发者”或“已损坏，无法打开”，说明当前包未使用 Developer ID 签名/公证。详细处理步骤见下方 [macOS：没有 Apple 开发者账号如何安装](#macos没有-apple-开发者账号如何安装未签名包)。
+
+### macOS：没有 Apple 开发者账号如何安装（未签名包）
+
+> **为什么会出现这个问题？**
+> macOS 的 Gatekeeper 要求分发的 App 必须用 **Developer ID** 签名并通过 **Apple 公证（notarization）**。没有 Apple 开发者账号（99 美元/年）时，打包产物只能做 **ad-hoc 签名**。这类包从互联网下载后，Gatekeeper 会拦截首次启动，常见提示有：
+> - “Apple 无法验证此 App 的开发者”
+> - 无法打开“yi-mark”，因为无法验证开发者
+> - “yi-mark”已损坏，无法打开
+>
+> **关键区别（先判断你属于哪种情况）**：
+>
+> | 场景 | 是否有隔离属性 | 是否需要处理 |
+> |------|----------------|--------------|
+> | 本机执行 `./build-app.sh mac` 构建 | 无 `com.apple.quarantine` | **不需要**，直接双击即可运行 |
+> | 从 GitHub Release / 邮件 / 微信等下载 | 有 `com.apple.quarantine` | **需要**，按下面任一方法放行 |
+>
+> 隔离属性（quarantine）是 macOS 给“从网络下载的文件”打上的标记，Gatekeeper 依据它决定是否拦截。下面所有方法都针对**下载来的包**。
+
+#### 方法一：右键打开（推荐，无需终端）
+
+1. 双击 DMG 挂载，把 `yi-mark.app` 拖入 `Applications` 文件夹
+2. **不要直接双击** App（会被拦截）
+3. 在「应用程序」文件夹中，**右键**（或按住 `Control` 点击）`yi-mark` → 选择 **打开**
+4. 在弹出的对话框中再次点击 **打开** 确认
+5. 首次放行成功后，之后双击即可正常启动
+
+> 若右键菜单没有「打开」选项，或仍提示“已损坏”，请改用方法二或方法三。
+
+#### 方法二：通过系统设置放行（macOS Ventura 及以上）
+
+1. 先双击一次 App（会被拦截，但此步会生成拦截记录，必须执行）
+2. 打开 **系统设置** → **隐私与安全性**
+3. 向下滚动，会看到提示：`“yi-mark”已被阻止使用，因为其开发者无法验证`
+4. 点击 **仍要打开**，输入登录密码
+5. 回到 App 弹窗，点击 **打开**
+
+> 旧版 macOS（Monterey 及更早）路径为 **系统偏好设置** → **安全性与隐私** → **通用** 标签页 → 「仍要打开」。
+
+#### 方法三：终端移除隔离属性（最彻底）
+
+```bash
+# 移除整个 App 的隔离属性
+xattr -dr com.apple.quarantine /Applications/yi-mark.app
+
+# 验证属性已移除（无输出即表示已干净）
+xattr /Applications/yi-mark.app
+
+# 启动
+open /Applications/yi-mark.app
+```
+
+若提示“已损坏，无法打开”，用更彻底的清除命令：
+
+```bash
+sudo xattr -cr /Applications/yi-mark.app
+```
+
+#### 如何确认 App 的签名状态
+
+```bash
+# 查看签名信息（ad-hoc 签名会显示 flags=0x2(adhoc)）
+codesign -dv --verbose=4 /Applications/yi-mark.app 2>&1
+
+# 查看隔离属性（有 com.apple.quarantine 即表示被 Gatekeeper 标记）
+xattr -l /Applications/yi-mark.app
+
+# 查看 Gatekeeper 评估结果（rejected 表示被拦截）
+spctl --assess --type execute /Applications/yi-mark.app
+```
+
+未签名（ad-hoc）包的典型输出：
+
+```
+Executable=/Applications/yi-mark.app/Contents/MacOS/yi-mark
+Identifier=com.yimark
+Format=app bundle with Mach-O thin (arm64)
+CodeDirectory v=20400 size=1475 flags=0x2(adhoc) hashes=40+3 location=embedded
+```
+
+> ⚠️ **不要**使用 `sudo spctl --global-disable`（或旧命令 `sudo spctl --master-disable`），那会关闭**整个系统**的 Gatekeeper，让所有来源的 App 都能运行，存在严重安全风险。请优先使用上面三种针对性方法。
+
+#### 安全提醒
+
+1. **只对你信任来源的 App 移除隔离属性**。`com.apple.quarantine` 是 macOS 防止恶意软件的安全机制，移除它等于告诉系统“我信任这个 App”。
+2. **校验来源**：只从官方 GitHub Release 下载，并用 `SHA256SUMS.txt` 核对哈希：
+   ```bash
+   shasum -a 256 yi-mark-1.0.9.dmg
+   ```
+3. **正式分发需要签名**：若要让他人无需上述步骤即可安装，必须购买 Apple 开发者账号（99 美元/年），用 Developer ID 签名并完成公证。`build-app.sh` 已支持：
+   ```bash
+   export MAC_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+   export APPLE_ID="you@example.com"
+   export APPLE_APP_PASSWORD="xxxx xxxx xxxx xxxx"  # App 专用密码
+   export APPLE_TEAM_ID="TEAMID"
+   ./build-app.sh mac
+   ```
 
 ### 方式二：开发环境运行
 

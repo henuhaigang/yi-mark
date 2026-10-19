@@ -43,7 +43,7 @@ Optional macOS signing/notarization:
 - `MAC_SIGNING_IDENTITY`: Developer ID Application identity used by `codesign`
 - `APPLE_ID`, `APPLE_APP_PASSWORD`, `APPLE_TEAM_ID`: submit the app with `xcrun notarytool`, then staple the ticket
 
-Without signing/notarization, the app is ad-hoc signed and macOS Gatekeeper may block first launch for downloaded DMGs.
+Without signing/notarization, the app is ad-hoc signed and macOS Gatekeeper may block first launch for downloaded DMGs. See the detailed "macOS：没有 Apple 开发者账号如何安装（未签名包）" section in `USAGE.md` for user-facing workarounds (right-click open, System Settings, `xattr -dr com.apple.quarantine`).
 
 ### Windows
 
