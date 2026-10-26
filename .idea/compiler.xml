@@ -7,7 +7,13 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="securedoc-java" />
+        <module name="yi-mark" />
       </profile>
     </annotationProcessing>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="yi-mark" options="--add-reads yi.mark=ALL-UNNAMED" />
+    </option>
   </component>
 </project>
